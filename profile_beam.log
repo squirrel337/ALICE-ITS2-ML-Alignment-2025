@@ -1,0 +1,61 @@
+
+Processing run_profile_beam.C...
+Warning in <TClass::Init>: no dictionary for class EventData is available
+Warning in <TClass::Init>: no dictionary for class TrackData is available
+Info in <TCanvas::MakeDefCanvas>:  created default TCanvas with name c1
+ FCN=7.1594 FROM MIGRAD    STATUS=CONVERGED      63 CALLS          64 TOTAL
+                     EDM=8.1257e-14    STRATEGY= 1      ERROR MATRIX ACCURATE 
+  EXT PARAMETER                                   STEP         FIRST   
+  NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+   1  Constant     6.23663e+02   1.35500e+01   1.54598e-02   2.97710e-09
+   2  Mean        -3.66668e-02   7.21088e-05   1.00565e-07  -3.38801e-03
+   3  Sigma        4.05101e-03   5.07676e-05   4.75177e-06  -7.18082e-05
+ FCN=11.8541 FROM MIGRAD    STATUS=CONVERGED      57 CALLS          58 TOTAL
+                     EDM=6.42971e-07    STRATEGY= 1      ERROR MATRIX ACCURATE 
+  EXT PARAMETER                                   STEP         FIRST   
+  NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+   1  Constant     1.26130e+03   1.93064e+01   2.71834e-02  -7.98905e-06
+   2  Mean        -3.90158e-02   5.14050e-05   8.99980e-08   2.18710e+01
+   3  Sigma        4.17408e-03   3.79924e-05   4.26839e-06  -5.68076e-02
+ FCN=14.4559 FROM MIGRAD    STATUS=CONVERGED      63 CALLS          64 TOTAL
+                     EDM=1.79099e-09    STRATEGY= 1      ERROR MATRIX ACCURATE 
+  EXT PARAMETER                                   STEP         FIRST   
+  NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+   1  Constant     3.98470e+02   1.11180e+01   1.69001e-02  -4.88410e-06
+   2  Mean        -4.05789e-02   9.09602e-05   1.74605e-07  -3.21712e-01
+   3  Sigma        4.10400e-03   7.03545e-05   8.64127e-06  -1.10006e-02
+ FCN=15.8348 FROM MIGRAD    STATUS=CONVERGED      56 CALLS          57 TOTAL
+                     EDM=2.51504e-08    STRATEGY= 1      ERROR MATRIX ACCURATE 
+  EXT PARAMETER                                   STEP         FIRST   
+  NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+   1  Constant     6.09210e+02   1.30888e+01   2.17208e-02  -1.61347e-05
+   2  Mean        -1.89135e-02   7.42959e-05   1.47733e-07  -1.44781e+00
+   3  Sigma        4.13598e-03   4.99572e-05   6.61502e-06  -5.55248e-02
+ FCN=31.8033 FROM MIGRAD    STATUS=CONVERGED      56 CALLS          57 TOTAL
+                     EDM=3.49553e-07    STRATEGY= 1      ERROR MATRIX ACCURATE 
+  EXT PARAMETER                                   STEP         FIRST   
+  NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+   1  Constant     1.27247e+03   1.94761e+01   4.38384e-02   2.30514e-05
+   2  Mean        -1.76668e-02   5.13609e-05   1.42285e-07  -3.19334e+00
+   3  Sigma        4.12514e-03   3.74599e-05   6.71179e-06   3.26388e-01
+ FCN=6.10088 FROM MIGRAD    STATUS=CONVERGED      63 CALLS          64 TOTAL
+                     EDM=3.85609e-10    STRATEGY= 1      ERROR MATRIX ACCURATE 
+  EXT PARAMETER                                   STEP         FIRST   
+  NO.   NAME      VALUE            ERROR          SIZE      DERIVATIVE 
+   1  Constant     3.95276e+02   1.10356e+01   1.13403e-02  -3.16322e-06
+   2  Mean        -1.68445e-02   9.21074e-05   1.19832e-07  -1.66186e-02
+   3  Sigma        4.15577e-03   7.18889e-05   5.92188e-06  -4.21866e-03
+
+****************************************
+Minimizer is Linear / Migrad
+Chi2                      =  1.02918e-07
+NDf                       =            1
+p0                        =   -0.0387538   +/-   0.000185219 
+p1                        =  0.000260806   +/-   3.02461e-05 
+
+****************************************
+Minimizer is Linear / Migrad
+Chi2                      =  3.00394e-08
+NDf                       =            1
+p0                        =   -0.0178083   +/-   0.000100066 
+p1                        = -0.000137932   +/-   1.63406e-05 
