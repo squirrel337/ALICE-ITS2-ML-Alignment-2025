@@ -19,7 +19,7 @@
 //                    Needs ROOT only, so the module runs without O2.
 //   YGEOM_USE_O2   - the original, reading the geometry and alignment through
 //                    o2::its::GeometryTGeo. This is the reference the cache is
-//                    validated against; see tools/validate_geometry_cache.C.
+//                    validated against; see tools/compare_L2G.py.
 //
 // The public interface is identical either way, so no call site changes.
 //
