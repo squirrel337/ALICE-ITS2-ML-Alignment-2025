@@ -3659,7 +3659,7 @@ bool YMultiLayerPerceptron::TrackerFit(double* input,
    fparXY[1] = CircleYc;
    fparXY[2] = 1/Fitpar[0];
    
-   double RecMomentumT = std::abs(o2::constants::math::B2C*1.0e+3*DET_MAG*RecRadius*1.0e-2);  //r[m] -> r[cm]
+   double RecMomentumT = std::abs(YO2::kB2C*1.0e+3*DET_MAG*RecRadius*1.0e-2);  //r[m] -> r[cm]
    if(RecMomentumT<Update_pTmin || RecMomentumT>Update_pTmax) {
    //   return false;
    }
@@ -4188,7 +4188,7 @@ void YMultiLayerPerceptron::TrackVertexQualityEstimator(double* fparXY, double* 
 #ifdef TRKVTXMONITOR
    branch_trkvtxer->clear();
 #endif
-   double track_tpc_R = BeamMom[0]/BeamMom[2]/(o2::constants::math::B2C*1.0e+3*DET_MAG*1.0e-2);
+   double track_tpc_R = BeamMom[0]/BeamMom[2]/(YO2::kB2C*1.0e+3*DET_MAG*1.0e-2);
    double track_tpc_pt = BeamMom[0];
    double track_tpc_Eta = BeamMom[1];
    double track_tpc_charge = BeamMom[2];
@@ -4644,7 +4644,7 @@ double YMultiLayerPerceptron::UpdateVertexByAlignment(bool saveHistory = false) 
 
       for(int track = 0; track < nTrackMax; track++){
 
-         double track_tpc_R = BeamMom[track][0]/BeamMom[track][2]/(o2::constants::math::B2C*1.0e+3*DET_MAG*1.0e-2);
+         double track_tpc_R = BeamMom[track][0]/BeamMom[track][2]/(YO2::kB2C*1.0e+3*DET_MAG*1.0e-2);
          double track_tpc_Eta = BeamMom[track][1];
          bool trackerFit = TrackerFit(inputG_C[track], TRKF_fXFit[track], TRKF_fparXY[track], TRKF_fparZR[track], TRKF_fbeta[track], hitUpdate[track], track_tpc_R, track_tpc_Eta);
 #ifdef UPDATEVERTEXDEBUG
@@ -5256,7 +5256,7 @@ Double_t YMultiLayerPerceptron::GetCost_Beam_CircleFit(int track) //const
    Cost_Fit = 0;    
 
 ///
-   double tpc_R = BeamMom[0]/BeamMom[2]/(o2::constants::math::B2C*1.0e+3*DET_MAG*1.0e-2);
+   double tpc_R = BeamMom[0]/BeamMom[2]/(YO2::kB2C*1.0e+3*DET_MAG*1.0e-2);
    double tpc_pt = BeamMom[0];
    double tpc_Eta = BeamMom[1];
    double tpc_charge = BeamMom[2];
@@ -5331,7 +5331,7 @@ Double_t YMultiLayerPerceptron::GetCost_Beam_CircleFit(int track) //const
    CircleXc = CircleXc + BeamCenter(0) + Fitpar[2];
    CircleYc = CircleYc + BeamCenter(1) + Fitpar[3];
 
-   double RecMomentumT = std::abs(o2::constants::math::B2C*1.0e+3*DET_MAG*RecRadius*1.0e-2);  //r[m] -> r[cm]
+   double RecMomentumT = std::abs(YO2::kB2C*1.0e+3*DET_MAG*RecRadius*1.0e-2);  //r[m] -> r[cm]
    
    //std::cout<<" pT(GeV) "<<RecMomentumT;
    //std::cout<<" Chip ";
@@ -6123,7 +6123,7 @@ void YMultiLayerPerceptron::CalculateEventDcdw(int ntracks)
       Cost_Fit = 0;    
 
 ///
-      double tpc_R = BeamMom[0]/BeamMom[2]/(o2::constants::math::B2C*1.0e+3*DET_MAG*1.0e-2);
+      double tpc_R = BeamMom[0]/BeamMom[2]/(YO2::kB2C*1.0e+3*DET_MAG*1.0e-2);
       double tpc_pt = BeamMom[0];
       double tpc_Eta = BeamMom[1];
       double tpc_charge = BeamMom[2];
@@ -6200,7 +6200,7 @@ void YMultiLayerPerceptron::CalculateEventDcdw(int ntracks)
       CircleXc = CircleXc + BeamCenter(0) + Fitpar[2];
       CircleYc = CircleYc + BeamCenter(1) + Fitpar[3];
    
-      double RecMomentumT = std::abs(o2::constants::math::B2C*1.0e+3*DET_MAG*RecRadius*1.0e-2);  //r[m] -> r[cm]
+      double RecMomentumT = std::abs(YO2::kB2C*1.0e+3*DET_MAG*RecRadius*1.0e-2);  //r[m] -> r[cm]
       if(RecMomentumT<Update_pTmin || RecMomentumT>Update_pTmax) {
          //std::cout<<"(Neuron) momentum range cut"<<std::endl;
          for(int ln = 0; ln<nLAYER; ln++){         
@@ -13370,7 +13370,7 @@ void YMultiLayerPerceptron::MLP_OffsetTuneByMean()
       matD2[2] = {0};  
 
       double Rxx, Rxy, Rxz, Tdx, Ryx, Ryy, Ryz, Tdy, Rzx, Rzy, Rzz, Tdz;
-      yGEOM->GetGeom()->getMatrixL2G(iID).GetComponents(Rxx, Rxy, Rxz, Tdx, Ryx, Ryy, Ryz, Tdy, Rzx, Rzy, Rzz, Tdz);
+      yGEOM->GetL2GComponents(iID, Rxx, Rxy, Rxz, Tdx, Ryx, Ryy, Ryz, Tdy, Rzx, Rzy, Rzz, Tdz);
 
       TMatrixD matRgeom(3,3);
       matRgeom[0] = {Rxx, Rxy, Rxz};
@@ -13631,7 +13631,7 @@ void YMultiLayerPerceptron::CalculateSCWeights(int sensorID, YSensorCorrection* 
       NetworkParameters[0][10] = wSynapse[5];
                     
       double Rxx, Rxy, Rxz, Tdx, Ryx, Ryy, Ryz, Tdy, Rzx, Rzy, Rzz, Tdz;
-      yGEOM->GetGeom()->getMatrixL2G(sensorID).GetComponents(Rxx, Rxy, Rxz, Tdx, Ryx, Ryy, Ryz, Tdy, Rzx, Rzy, Rzz, Tdz);
+      yGEOM->GetL2GComponents(sensorID, Rxx, Rxy, Rxz, Tdx, Ryx, Ryy, Ryz, Tdy, Rzx, Rzy, Rzz, Tdz);
 
       TMatrixD matRgeom(3,3);
       matRgeom[0] = {Rxx, Rxy, Rxz};
