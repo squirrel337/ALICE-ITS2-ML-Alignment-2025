@@ -33,7 +33,7 @@
 
 #define DET_MAG 	-0.500673 //T
 
-#define VERTEXFIT	FALSE //TRUE FALSE
+#define VERTEXFIT	kFALSE //TRUE FALSE
 
 //Training strategy
 
@@ -66,4 +66,4 @@
 #define Update_pTmin 0.30
 #define Update_pTmax 10.00
 
-#define VERTEX_DERIVATIVES FALSE
+#define VERTEX_DERIVATIVES kFALSE
