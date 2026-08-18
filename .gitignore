@@ -72,3 +72,8 @@ MLPTrain*/
 /Residual_Epoch_At_*.root
 /Residual_Monitor_Epoch_At_*.root
 /MLPTrain_Step900/
+
+# L2G dumps produced for the O2 cross-check. tools/dump_L2G_from_cache.C and
+# tools/dump_L2G_from_O2.C regenerate them; tools/compare_L2G.py diffs the two.
+o2_L2G.txt
+cache_L2G.txt

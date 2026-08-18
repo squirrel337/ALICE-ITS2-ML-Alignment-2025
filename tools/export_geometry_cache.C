@@ -227,7 +227,48 @@ void export_geometry_cache(const char* geomFile  = "o2sim_geometry.root",
       const Double_t* r  = m->GetRotationMatrix();
       const Double_t* tr = m->GetTranslation();
       for (int k = 0; k < 9; ++k) R[k] = r[k];
-      for (int k = 0; k < 3; ++k) T[k] = tr[k];
+
+      // ---------------------------------------------------------------------
+      // The alignable entry is the ITSUChip volume, but reconstructed clusters
+      // live on the ITSUSensor volume nested inside it, and O2's getMatrixL2G
+      // refers to that sensor frame. Harvesting the chip matrix verbatim leaves
+      // the cache offset from O2 by the sensor placement -- measured as -5 um in
+      // the inner barrel and +20 um in the outer, which puts every hit off the
+      // plane and makes PrepareData's |s3| < 1e-4 cm test reject the whole
+      // sample. Compose the placement in so the cache reproduces O2's L2G.
+      //
+      // The placement is read from the geometry rather than hard-coded, so it
+      // follows the file. kEffLayer is the one empirical term: the residual
+      // offset of the cluster plane from the sensor volume centre, equal to
+      // (SensorLayerThickness - SensorLayerThicknessEff)/2 = 1 um and uniform
+      // across all seven layers. VERIFY BOTH against O2's getMatrixL2G; if O2
+      // reports the sensor volume centre, set kEffLayer to 0.
+      // ---------------------------------------------------------------------
+      constexpr double kEffLayer = 0.5 * (30.e-4 - 28.e-4);   // +1 um
+      double sLoc[3] = {0., 0., 0.};
+      {
+         TGeoVolume* cv = pn->GetVolume();
+         bool found = false;
+         for (int d = 0; d < cv->GetNdaughters(); ++d) {
+            TGeoNode* nd = cv->GetNode(d);
+            if (!TString(nd->GetVolume()->GetName()).Contains("Sensor")) continue;
+            const Double_t* sr = nd->GetMatrix()->GetRotationMatrix();
+            double dev = 0;
+            for (int i = 0; i < 3; ++i)
+               for (int j = 0; j < 3; ++j)
+                  dev = std::max(dev, std::fabs(sr[3*i+j] - (i == j ? 1. : 0.)));
+            if (dev > 1e-9)
+               ::Warning("export", "chip %d: sensor placement is not a pure translation "
+                                   "(|R-I|=%.1e); only its translation is used", chipID, dev);
+            const Double_t* st = nd->GetMatrix()->GetTranslation();
+            sLoc[0] = st[0]; sLoc[1] = st[1] + kEffLayer; sLoc[2] = st[2];
+            found = true;
+            break;
+         }
+         if (!found) { ++nBad; continue; }
+      }
+      for (int i = 0; i < 3; ++i)
+         T[i] = tr[i] + r[3*i]*sLoc[0] + r[3*i+1]*sLoc[1] + r[3*i+2]*sLoc[2];
 
       // The symname numbers staves within their half-barrel, so layer 0 reads
       // HalfBarrel0/Stave0..5 and HalfBarrel1/Stave0..5. O2's GetStave returns a
@@ -246,7 +287,8 @@ void export_geometry_cache(const char* geomFile  = "o2sim_geometry.root",
 
    TNamed prov("provenance",
                Form("geometry=%s;alignment=%s;producer=ROOT-only;root=%s;"
-                    "delta=Rz(phi)Ry(theta)Rx(psi) global, newGlobal=delta*origGlobal;date=%s",
+                    "delta=Rz(phi)Ry(theta)Rx(psi) global, newGlobal=delta*origGlobal;"
+                    "frame=ITSUSensor+1um(effLayer);date=%s",
                     geomFile, alignFile, gROOT->GetVersion(), TDatime().AsSQLString()));
    prov.Write();
    t->Write();
