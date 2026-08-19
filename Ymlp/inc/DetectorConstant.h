@@ -31,7 +31,7 @@
 
 #define SIGMA_MEAS	1
 
-#define DET_MAG 	-0.500673 //T
+#define DET_MAG 	+0.500673 //T
 
 #define VERTEXFIT	FALSE //TRUE FALSE
 
