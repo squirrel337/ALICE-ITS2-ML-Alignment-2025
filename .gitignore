@@ -77,3 +77,9 @@ MLPTrain*/
 # tools/dump_L2G_from_O2.C regenerate them; tools/compare_L2G.py diffs the two.
 o2_L2G.txt
 cache_L2G.txt
+
+# monitoring outputs (tools/monitoring) -- all regenerable from the macros
+tools/monitoring/plots/
+tools/monitoring/*.log
+tools/monitoring/report_*.html
+tools/monitoring/cost_epoch.txt
