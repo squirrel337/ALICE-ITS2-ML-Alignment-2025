@@ -32,7 +32,7 @@ repository from its own location, so it works from anywhere. Plot directories ar
 
 | file | produces |
 | --- | --- |
-| `make_monitoring_plots.sh` | runs the supplied `user_macros/` against one epoch → `macro_plots/` |
+| `make_monitoring_plots.sh` | runs the supplied `user_macros/` against one epoch → `plots/` |
 | `plot_epoch_trends.C` | residual and DCA against epoch, all epochs on one axis |
 | `compare_track_fits.C` | cluster-only vs vertex-constrained fit, side by side |
 | `compare_dca_reference.C` | DCA measured against `v_est` vs against `v_reco` (diagnostic) |

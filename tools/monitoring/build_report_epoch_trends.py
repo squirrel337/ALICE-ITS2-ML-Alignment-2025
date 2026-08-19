@@ -45,7 +45,7 @@ HTML = f"""<title>Epoch-by-Epoch Monitoring</title>
   per-epoch fits are where the movement is legible.</p>
   <dl class="meta">
     <div><dt>Epochs</dt><dd>&minus;1, 0, 1, 2, 3, 4</dd></div>
-    <div><dt>Macro</dt><dd>monitor/plot_epoch_trends.C</dd></div>
+    <div><dt>Macro</dt><dd>tools/monitoring/plot_epoch_trends.C</dd></div>
     <div><dt>Transverse width change</dt><dd>up to &minus;2.3 %</dd></div>
     <div><dt>Longitudinal width change</dt><dd>&lt; 0.06 %, within error</dd></div>
     <div><dt>Transverse mean, L6</dt><dd>&minus;28.5 &rarr; &minus;19.1 &micro;m</dd></div>
@@ -156,7 +156,7 @@ HTML = f"""<title>Epoch-by-Epoch Monitoring</title>
   nTrackMax 8, B = &minus;0.500673&nbsp;T. Tracks flagged
   <code>used</code> by the vertexer, from the <code>TrkVtxer</code> tree written by
   <code>TrackVertexQualityEstimator</code>. Widths and means from an iterative &plusmn;2&sigma;
-  Gaussian fit seeded on the half-maximum points. Macro: <code>monitor/plot_epoch_trends.C</code>.</p>
+  Gaussian fit seeded on the half-maximum points. Macro: <code>tools/monitoring/plot_epoch_trends.C</code>.</p>
 </footer>
 
 </div>

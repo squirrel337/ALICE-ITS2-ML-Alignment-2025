@@ -1,6 +1,6 @@
 import base64
 STYLE = open('report_style.css').read()
-def img(p): return base64.b64encode(open('macro_plots/'+p,'rb').read()).decode()
+def img(p): return base64.b64encode(open('plots/'+p,'rb').read()).decode()
 def img2(p): return base64.b64encode(open(p,'rb').read()).decode()
 
 def block(txt, start):
@@ -67,7 +67,7 @@ HTML = f"""<title>Macro-Driven Monitoring</title>
   supplied, run unchanged, against the cluster-only fit &mdash; baseline and epoch 4 side by
   side.</p>
   <dl class="meta">
-    <div><dt>Driver</dt><dd>monitor/make_monitoring_plots.sh</dd></div>
+    <div><dt>Driver</dt><dd>tools/monitoring/make_monitoring_plots.sh</dd></div>
     <div><dt>Tree</dt><dd>TrkVtxer, 165 096 trk</dd></div>
     <div><dt>Fit</dt><dd>supplied fitter, scale = 2</dd></div>
     <div><dt>DCA_y at 1&ndash;1.25 GeV/c</dt><dd>36.4 &rarr; 35.9 &micro;m</dd></div>
@@ -216,7 +216,7 @@ HTML = f"""<title>Macro-Driven Monitoring</title>
 
 <footer>
   <p>Reproduce with <code>./make_monitoring_plots.sh &lt;epoch&gt; &lt;outdir&gt;</code> from
-  <code>/home/user/monitor</code>; macros in <code>monitor/user_macros/</code>. Run 901, 20 000
+  the repository root; macros in <code>tools/monitoring/user_macros/</code>. Run 901, 20 000
   events, nEPOCH 5, nTrackMax 8, B = &minus;0.500673&nbsp;T. Fit scale 2, i.e. the
   &plusmn;2&sigma; pass of the supplied fitter after its half-maximum seed.</p>
 </footer>

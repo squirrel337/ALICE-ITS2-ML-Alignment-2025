@@ -201,7 +201,7 @@ HTML = f"""<title>Vertex Reference and DCA</title>
   <p>Run 901, 20 000 events, nEPOCH 5, nTrackMax 8, B = &minus;0.500673&nbsp;T. Geometry cache
   verified against O<sup>2</sup> <code>getMatrixL2G</code> for all 24 120 chips. Widths from an
   iterative &plusmn;2&sigma; Gaussian fit seeded on the half-maximum points. Macro:
-  <code>monitor/compare_dca_reference.C</code>.</p>
+  <code>tools/monitoring/compare_dca_reference.C</code>.</p>
 </footer>
 
 </div>

@@ -197,7 +197,7 @@ HTML = f"""<title>Cluster-Only Fit Monitoring</title>
   <p>Run 901, 20 000 events, nEPOCH 5, nTrackMax 8, B = &minus;0.500673&nbsp;T. Tracks flagged
   <code>used</code> by the vertexer. Widths from an iterative &plusmn;2&sigma; Gaussian fit seeded
   on the half-maximum points; the supplied-macro panels use their own equivalent convention.
-  Macros: <code>monitor/compare_track_fits.C</code>, plus the four
+  Macros: <code>tools/monitoring/compare_track_fits.C</code>, plus the four
   <code>check_vertex_*_plots_trkvtxer_color.C</code> run unmodified.</p>
 </footer>
 
