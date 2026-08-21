@@ -13,17 +13,20 @@
 //
 //  Run it once under each backend and diff the two files:
 //
-//      # O2 build
+//      # O2 build -- the header decides the backend, so flip it first
 //      eval `alienv load -w $O2_DIR/sw O2/latest`
-//      root -l -b -q 'tools/dump_geometry_probe.C("geometry/probe_o2.root", 1)'
+//      sed -i '1i #define YGEOM_USE_O2 1' Ymlp/inc/YDetectorGeometry.h
+//      root -l -b -q 'tools/dump_geometry_probe.C("geometry/probe_o2.root")'
+//      sed -i '1{/^#define YGEOM_USE_O2 1$/d}' Ymlp/inc/YDetectorGeometry.h
 //
 //      # cache build
-//      root -l -b -q 'tools/dump_geometry_probe.C("geometry/probe_cache.root", 0)'
+//      root -l -b -q 'tools/dump_geometry_probe.C("geometry/probe_cache.root")'
 //
 //      root -l -b -q 'tools/compare_geometry_probe.C("geometry/probe_o2.root","geometry/probe_cache.root")'
 //
-//  The second argument only labels the provenance; which backend is actually used is
-//  decided by YGEOM_USE_O2 when YDetectorGeometry.cxx is compiled.
+//  The second argument is optional and only labels the provenance; the backend is
+//  decided by YGEOM_USE_O2 when YDetectorGeometry.cxx is compiled. Passing a label
+//  that contradicts the build is refused rather than written.
 // ==========================================================================
 
 // The implementation is included, not .L'd, so yGEOM exists at parse time. Which
@@ -41,6 +44,28 @@
 
 void dump_geometry_probe(const char* outFile = "geometry/probe.root", int isO2 = -1)
 {
+   // Which backend this build actually is. The argument only labels the file, so a
+   // caller who flips the argument without flipping the header produces a probe that
+   // claims to be O2 while holding cache numbers -- and compare_geometry_probe.C then
+   // reports a match between a file and itself. Refuse that outright.
+#ifdef YGEOM_USE_O2
+   const int actual = 1;
+#else
+   const int actual = 0;
+#endif
+   if (isO2 >= 0 && isO2 != actual) {
+      ::Error("dump_geometry_probe",
+              "asked to label this '%s' but this build is '%s'.\n"
+              "  The backend is chosen by YGEOM_USE_O2 in Ymlp/inc/YDetectorGeometry.h,\n"
+              "  not by this argument. To probe the O2 side:\n"
+              "    sed -i '1i #define YGEOM_USE_O2 1' Ymlp/inc/YDetectorGeometry.h\n"
+              "    root -l -b -q 'tools/dump_geometry_probe.C(\"geometry/probe_o2.root\")'\n"
+              "    sed -i '1{/^#define YGEOM_USE_O2 1$/d}' Ymlp/inc/YDetectorGeometry.h",
+              isO2 ? "O2" : "cache", actual ? "O2" : "cache");
+      return;
+   }
+   isO2 = actual;   // label from the build, never from the caller
+
    constexpr int kNChips = 24120;
    // corners first, then the centre: the corners are what give the test its power
    const int kRow[5] = {0,   0, 511, 511, 255};
@@ -74,7 +99,7 @@ void dump_geometry_probe(const char* outFile = "geometry/probe.root", int isO2 =
 
    TNamed prov("provenance",
                Form("backend=%s; chips=%d; 5 pixels incl. corners; %s",
-                    isO2 > 0 ? "O2" : (isO2 == 0 ? "cache" : "unlabelled"),
+                    isO2 > 0 ? "O2" : "cache",
                     kNChips, TDatime().AsSQLString()));
    prov.Write();
    t.Write();
