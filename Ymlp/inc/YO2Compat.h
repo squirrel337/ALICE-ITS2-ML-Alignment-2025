@@ -55,7 +55,9 @@ namespace YO2 {
 // and a run that must reproduce another bit for bit cannot carry a different
 // constant. Float it is -- matching O2 matters more here than looking precise.
 constexpr float kPI = 3.14159274101257324e+00f;
+constexpr float kTwoPI = 2.f * kPI;
 constexpr float kPIHalf = 0.5f * kPI;
+constexpr float kRad2Deg = 180.f / kPI;
 
 // converts (kG, GeV/c, cm) to a curvature
 constexpr float kB2C = -0.299792458e-3;
@@ -70,10 +72,26 @@ constexpr float kSectorSpanRad = kSectorSpanDeg * kDeg2Rad;
 // sector containing it.
 inline double Angle2Alpha(double phi)
 {
-   const int sect = int(phi / kSectorSpanRad + (phi < 0 ? -0.0 : 0.0));
-   // sector index counted from -pi so that negative phi lands in the right sector
-   const int s = (phi >= 0) ? sect : sect - 1;
-   return kSectorSpanRad * (double(s) + 0.5);
+   // o2::math_utils::detail::angle2Alpha = sector2Angle(angle2Sector(phi)),
+   // transcribed rather than paraphrased, because the arithmetic types are part of
+   // the answer. In O2 both SectorSpanRad and (0.5f + sect) are float, so the product
+   // is evaluated in FLOAT and only then widened -- computing it in double gives a
+   // different number in the eighth digit for 17 sectors out of 18.
+   //
+   // The negative-phi branch is also not a mirror of the positive one: O2 adds
+   // NSectors-1 and lets bringToPMPi wrap the result, where subtracting one sector
+   // would differ by 18*SectorSpanRad - TwoPI, which is not zero in float.
+   int sect = phi * kRad2Deg / kSectorSpanDeg;
+   if (phi < 0.f) {
+      sect += kNSectors - 1;
+   }
+   double ang = kSectorSpanRad * (0.5f + sect);
+   if (ang > kPI) {
+      ang -= kTwoPI;
+   } else if (ang < -kPI) {
+      ang += kTwoPI;
+   }
+   return ang;
 }
 
 // o2::math_utils::detail::rotateZ, acting in place on a 3-vector
