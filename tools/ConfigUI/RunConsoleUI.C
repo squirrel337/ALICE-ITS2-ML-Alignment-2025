@@ -167,7 +167,7 @@ TGTextEntry *AlignRunConsoleUI::MakeRow(TGCompositeFrame *p, const char *label, 
 {
    TGHorizontalFrame *row = new TGHorizontalFrame(p);
    TGLabel *l = new TGLabel(row, label);
-   l->SetWidth(160); l->SetTextJustify(kTextRight);
+   l->SetWidth(200); l->SetTextJustify(kTextRight);
    row->AddFrame(l, new TGLayoutHints(kLHintsCenterY, 4, 6, 3, 3));
 
    TGTextEntry *entry = new TGTextEntry(row, "");
@@ -190,7 +190,7 @@ TGNumberEntry *AlignRunConsoleUI::AddInt(TGCompositeFrame *tab, const char *labe
 {
    TGHorizontalFrame *r = new TGHorizontalFrame(tab);
    TGLabel *rl = new TGLabel(r, label);
-   rl->SetWidth(160); rl->SetTextJustify(kTextRight);
+   rl->SetWidth(200); rl->SetTextJustify(kTextRight);
    r->AddFrame(rl, new TGLayoutHints(kLHintsCenterY, 4, 6, 3, 3));
    TGNumberEntry *n = new TGNumberEntry(r, 0, 9, -1, TGNumberFormat::kNESInteger,
                                         TGNumberFormat::kNEANonNegative,
@@ -205,7 +205,7 @@ TGNumberEntry *AlignRunConsoleUI::AddReal(TGCompositeFrame *tab, const char *lab
 {
    TGHorizontalFrame *r = new TGHorizontalFrame(tab);
    TGLabel *rl = new TGLabel(r, label);
-   rl->SetWidth(160); rl->SetTextJustify(kTextRight);
+   rl->SetWidth(200); rl->SetTextJustify(kTextRight);
    r->AddFrame(rl, new TGLayoutHints(kLHintsCenterY, 4, 6, 3, 3));
    // kNESReal, not kNESRealThree. The fixed-fraction styles round to their declared
    // number of decimals without saying so, and these are physics constants read back
@@ -224,7 +224,7 @@ TGComboBox *AlignRunConsoleUI::AddCombo(TGCompositeFrame *tab, const char *label
 {
    TGHorizontalFrame *r = new TGHorizontalFrame(tab);
    TGLabel *rl = new TGLabel(r, label);
-   rl->SetWidth(160); rl->SetTextJustify(kTextRight);
+   rl->SetWidth(200); rl->SetTextJustify(kTextRight);
    r->AddFrame(rl, new TGLayoutHints(kLHintsCenterY, 4, 6, 3, 3));
 
    TGComboBox *c = new TGComboBox(r);
@@ -241,7 +241,7 @@ TGComboBox *AlignRunConsoleUI::AddCombo(TGCompositeFrame *tab, const char *label
 
 void AlignRunConsoleUI::Note(TGCompositeFrame *tab, const char *text, Int_t padTop)
 {
-   tab->AddFrame(new TGLabel(tab, text), new TGLayoutHints(kLHintsLeft, 168, 4, padTop, 0));
+   tab->AddFrame(new TGLabel(tab, text), new TGLayoutHints(kLHintsLeft, 208, 4, padTop, 0));
 }
 
 void AlignRunConsoleUI::SelectByName(TGComboBox *c, const TString &name)
@@ -440,27 +440,19 @@ void AlignRunConsoleUI::BuildVertex(TGCompositeFrame *tab)
    fVertexDeriv  = AddCombo(tab, "VERTEX_DERIVATIVES", "kFALSE kTRUE");
 
    fVertexLabel = new TGLabel(tab, "");
-   tab->AddFrame(fVertexLabel, new TGLayoutHints(kLHintsLeft, 168, 4, 14, 4));
+   tab->AddFrame(fVertexLabel, new TGLayoutHints(kLHintsLeft, 208, 4, 14, 4));
 
-   Note(tab, "This tab has no counterpart in the 2024 module. There the vertex is whatever the", 10);
-   Note(tab, "reconstruction supplied; here UpdateVertexByAlignment re-estimates it from the prongs", 0);
-   Note(tab, "of each event, and can throw the event away on what it finds.", 0);
+   Note(tab, "No counterpart in the 2024 module: there the vertex is whatever the reconstruction", 10);
+   Note(tab, "supplied. UpdateVertexByAlignment re-estimates it per event and can reject the event.", 0);
 
-   Note(tab, "Each prong is scored dev = p * |dca| / 40 um, in y and z separately. Either component", 10);
-   Note(tab, "above QUALITY_VERTEXING makes that prong bad. More bad prongs than 'Max bad prongs'", 0);
-   Note(tab, "drops the event; otherwise the vertex is refitted from the good ones and the event", 0);
-   Note(tab, "survives if the worst remaining dev stays under QUALITY_TRACKVERTEX.", 0);
+   Note(tab, "Each prong scores dev = p * |dca| / 40 um, in y and z. Either component above", 10);
+   Note(tab, "QUALITY_VERTEXING makes it bad; more bad prongs than 'Max bad prongs' drops the event,", 0);
+   Note(tab, "otherwise the vertex is refitted and the worst remaining dev must stay under", 0);
+   Note(tab, "QUALITY_TRACKVERTEX. Momentum-weighted, so these are not fixed windows -- see above.", 0);
 
-   Note(tab, "These are momentum-weighted, not distances. dev = 5 is a 200 um dca at 1 GeV/c and a", 10);
-   Note(tab, "20 um dca at 10 GeV/c, so loosening them keeps badly vertexed events rather than just", 0);
-   Note(tab, "widening a window. Max bad prongs counts against nTrackMax on the Module tab.", 0);
-
-   Note(tab, "VERTEX_DERIVATIVES puts the vertex into the alignment gradient. It ships kFALSE: the", 10);
-   Note(tab, "vertex is fitted and used to select, but left out of the derivative. Four sites read it.", 0);
-
-   Note(tab, "Fixed in the source, not settable here: the refit after dropping bad prongs is always", 10);
-   Note(tab, "on, the fitted vertex is always the one the cost uses, and the 40 um in dev is a literal.", 0);
-   Note(tab, "DetectorConstant.h also defines VERTEXFIT, which nothing in the module reads.", 0);
+   Note(tab, "Fixed in the source: the refit is always on, the fitted vertex is always what the cost", 10);
+   Note(tab, "uses, and the 40 um is a literal. VERTEXFIT on the Job tab is inert -- nothing reads it.", 0);
+   Note(tab, "Full description: docs/run-console.html, section 9.", 0);
 }
 
 void AlignRunConsoleUI::BuildRun(TGCompositeFrame *tab)
