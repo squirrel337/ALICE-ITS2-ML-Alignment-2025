@@ -329,6 +329,26 @@ footer.page a { color: var(--accent); }
     tree built two ways, and the module checkout is still only ever read. Composing again
     switches cleanly in either direction.
   </p>
+
+  <div class="note">
+    <span class="lbl">In o2 mode the module is the original module</span>
+    <p>
+      The guard is not a switch between two rewrites. Every source under
+      <code>Ymlp/</code> holds the text of the <code>original-negB</code> tag and only adds
+      to it: the tag's lines sit inside <code>#ifdef YGEOM_USE_O2</code>, the cache
+      alternatives inside <code>#else</code>, and the cache-only members inside
+      <code>#ifndef</code> blocks. The module diff against the tag is <strong>+242 lines,
+      &minus;0</strong> &mdash; not one original line modified or removed, in any of the 24
+      files.
+    </p>
+    <p>
+      So with <code>GEOM_BACKEND=o2</code> all 24 sources preprocess to the tag byte for
+      byte, and the only lines that differ anywhere in a composed job are the marker
+      comment and the <code>#define</code> the console itself writes to select the backend.
+      An o2 run executes the original module's arithmetic by construction, whatever the
+      cache backend does.
+    </p>
+  </div>
   <p>
     <code>o2</code> is the default and the reference. <code>cache</code> exists for
     machines where O<sup>2</sup> cannot be installed. <code>doctor</code> checks what the

@@ -111,7 +111,7 @@ private:
 #ifdef YGEOM_USE_O2
    o2::its::GeometryTGeo* geom;
 #else
-   // Cache backend. Filled from the file named by fCacheFile in the constructor.
+   // Cache backend. Filled by LoadCache from $YGEOM_CACHE, or geometry/its2_geom.root.
    // Layout mirrors tools/export_geometry_cache.C exactly.
    struct ChipGeom {
       double R[9];      // rotation, row-major

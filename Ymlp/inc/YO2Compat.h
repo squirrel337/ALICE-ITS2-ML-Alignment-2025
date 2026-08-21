@@ -289,26 +289,28 @@ template <> inline void rotateZ<double>(gpu::gpustd::array<double, 3>& v, double
 
 } // namespace o2
 
-#endif // YGEOM_USE_O2
-
+// O2 routes LOG to FairLogger, and LOG(debug) is suppressed by default; without O2
+// nothing defines LOG at all, so discard. NullStream is declared just above, in this
+// same branch -- which is why this guard lives inside it rather than after the #endif.
 #ifndef LOG
  #define LOG(level) YO2::NullStream()
 #endif
 
 // DetectorConstant.h spells VERTEXFIT and VERTEX_DERIVATIVES as TRUE and FALSE, which
-// are not ROOT's -- ROOT has kTRUE and kFALSE and defines neither of these. They reach
-// the O2 build through its own header chain, and without O2 nothing defines them, so
-// if(VERTEX_DERIVATIVES) at YMultiLayerPerceptron.cxx:6223 would not compile.
-//
-// Guarded, and here rather than in DetectorConstant.h, so that with O2 present this is
-// a no-op and DetectorConstant.h stays byte-identical to the original module: a macro
-// body is only expanded where it is used, and every use is in the .cxx, long after this
-// header. Spelling them as ROOT's own constants keeps them 0 and 1 either way.
+// are not ROOT's -- ROOT has kTRUE and kFALSE and defines neither. They reach the O2
+// build through its own header chain, exactly as they did in the original module;
+// without O2 nothing defines them, so if(VERTEX_DERIVATIVES) at
+// YMultiLayerPerceptron.cxx:6223 would not compile. Spelling them as ROOT's own
+// constants keeps them 0 and 1, and putting them here rather than in
+// DetectorConstant.h leaves that file byte-identical to the original: a macro body is
+// only expanded where it is used, and every use is in the .cxx, long after this header.
 #ifndef FALSE
  #define FALSE kFALSE
 #endif
 #ifndef TRUE
  #define TRUE kTRUE
 #endif
+
+#endif // YGEOM_USE_O2
 
 #endif
