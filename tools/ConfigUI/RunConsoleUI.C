@@ -396,7 +396,7 @@ void AlignRunConsoleUI::BuildJob(TGCompositeFrame *tab)
    fNTrackMax = AddInt (tab, "nTrackMax", 2, 200);
    fDetMag    = AddReal(tab, "DET_MAG (T)");
    fFitModel  = AddCombo(tab, "FITMODEL", "1 2");
-   fVertexFit = AddCombo(tab, "VERTEXFIT", "kFALSE kTRUE");
+   fVertexFit = AddCombo(tab, "VERTEXFIT", "FALSE TRUE");
    fMethod    = AddCombo(tab, "Learning method",
                          "kStochastic kBatch kBatchDetectorUnitUser kSteepestDescent "
                          "kRibierePolak kFletcherReeves kBFGS kOffsetTuneByMean");
@@ -453,7 +453,7 @@ void AlignRunConsoleUI::BuildVertex(TGCompositeFrame *tab)
    fQualVtx      = AddReal(tab, "QUALITY_VERTEXING");
    fQualTrkVtx   = AddReal(tab, "QUALITY_TRACKVERTEX");
    fMaxBadTracks = AddInt (tab, "Max bad prongs", 0, 64);
-   fVertexDeriv  = AddCombo(tab, "VERTEX_DERIVATIVES", "kFALSE kTRUE");
+   fVertexDeriv  = AddCombo(tab, "VERTEX_DERIVATIVES", "FALSE TRUE");
 
    fVertexLabel = new TGLabel(tab, "");
    tab->AddFrame(fVertexLabel, new TGLayoutHints(kLHintsLeft, 208, 4, 14, 4));

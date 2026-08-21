@@ -161,4 +161,20 @@ struct NullStream {
  #define LOG(level) YO2::NullStream()
 #endif
 
+// DetectorConstant.h spells VERTEXFIT and VERTEX_DERIVATIVES as TRUE and FALSE, which
+// are not ROOT's -- ROOT has kTRUE and kFALSE and defines neither of these. They reach
+// the O2 build through its own header chain, and without O2 nothing defines them, so
+// if(VERTEX_DERIVATIVES) at YMultiLayerPerceptron.cxx:6223 would not compile.
+//
+// Guarded, and here rather than in DetectorConstant.h, so that with O2 present this is
+// a no-op and DetectorConstant.h stays byte-identical to the original module: a macro
+// body is only expanded where it is used, and every use is in the .cxx, long after this
+// header. Spelling them as ROOT's own constants keeps them 0 and 1 either way.
+#ifndef FALSE
+ #define FALSE kFALSE
+#endif
+#ifndef TRUE
+ #define TRUE kTRUE
+#endif
+
 #endif

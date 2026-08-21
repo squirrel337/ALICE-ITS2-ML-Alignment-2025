@@ -283,8 +283,8 @@ rc_validate() {
     *) echo "  JOB_FITMODEL must be 1 (Line) or 2 (Circle), got '$JOB_FITMODEL'" >&2; bad=1 ;;
   esac
   case "$JOB_VERTEXFIT" in
-    kTRUE|kFALSE) ;;
-    *) echo "  JOB_VERTEXFIT must be kTRUE or kFALSE, got '$JOB_VERTEXFIT'" >&2; bad=1 ;;
+    TRUE|FALSE) ;;
+    *) echo "  JOB_VERTEXFIT must be TRUE or FALSE, as DetectorConstant.h spells it, got '$JOB_VERTEXFIT'" >&2; bad=1 ;;
   esac
   case " $RC_METHODS " in
     *" $JOB_LEARNING_METHOD "*) ;;
