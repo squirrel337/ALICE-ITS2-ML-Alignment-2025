@@ -22,9 +22,12 @@
 #include "YSensorCorrection.h"
 #include "DataInputStructure.h"
 
-// With YGEOM_USE_O2 this is where CommonConstants/MathConstants.h and
-// MathUtils/Utils.h come in -- the same two headers, at the same point.
+#ifdef YGEOM_USE_O2
+#include "CommonConstants/MathConstants.h"
+#include "MathUtils/Utils.h"
+#else
 #include "YO2Compat.h"
+#endif
 
 class TTree;
 class TEventList;
@@ -144,49 +147,49 @@ struct YImpactParameter {
      double radPos2 = xyz[0] * xyz[0] + xyz[1] * xyz[1];
      double alp = 0;
      if (sectorAlpha || radPos2 < 1) {
-       alp = YO2::ATan2(pxpypz[1], pxpypz[0]);
+       alp = o2::math_utils::detail::atan2<double>(pxpypz[1], pxpypz[0]);
      } else {
-       alp = YO2::ATan2(xyz[1], xyz[0]);
+       alp = o2::math_utils::detail::atan2<double>(xyz[1], xyz[0]);
      }
      if (sectorAlpha) {
-       alp = YO2::Angle2Alpha(alp);
+       alp = o2::math_utils::detail::angle2Alpha<double>(alp);
      }
      //
      double sn, cs;
-     YO2::SinCos(alp, sn, cs);
+     o2::math_utils::detail::sincos(alp, sn, cs);
      // protection against cosp<0
      if (cs * pxpypz[0] + sn * pxpypz[1] < 0) {
        LOG(debug) << "alpha from phiPos() will invalidate this track parameters, overriding to alpha from phi()";
-       alp = YO2::ATan2(pxpypz[1], pxpypz[0]);
+       alp = o2::math_utils::detail::atan2<double>(pxpypz[1], pxpypz[0]);
        if (sectorAlpha) {
-         alp = YO2::Angle2Alpha(alp);
+         alp = o2::math_utils::detail::angle2Alpha<double>(alp);
        }
-       YO2::SinCos(alp, sn, cs);
+       o2::math_utils::detail::sincos(alp, sn, cs);
      }
 
      // protection:  avoid alpha being too close to 0 or +-pi/2
-     if (YO2::Abs(sn) < 2 * kSafe) {
+     if (o2::math_utils::detail::abs<double>(sn) < 2 * kSafe) {
        if (alp > 0) {
-         alp += alp < YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
+         alp += alp < o2::constants::math::PIHalf ? 2 * kSafe : -2 * kSafe;
        } else {
-         alp += alp > -YO2::kPIHalf ? -2 * kSafe : 2 * kSafe;
+         alp += alp > -o2::constants::math::PIHalf ? -2 * kSafe : 2 * kSafe;
        }
-       YO2::SinCos(alp, sn, cs);
-     } else if (YO2::Abs(cs) < 2 * kSafe) {
+       o2::math_utils::detail::sincos(alp, sn, cs);
+     } else if (o2::math_utils::detail::abs<double>(cs) < 2 * kSafe) {
        if (alp > 0) {
-         alp += alp > YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
+         alp += alp > o2::constants::math::PIHalf ? 2 * kSafe : -2 * kSafe;
        } else {
-         alp += alp > -YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
+         alp += alp > -o2::constants::math::PIHalf ? 2 * kSafe : -2 * kSafe;
        }
-       YO2::SinCos(alp, sn, cs);
+       o2::math_utils::detail::sincos(alp, sn, cs);
      }
      // get the vertex of origin and the momentum
-     std::array<double, 3> ver{xyz[0], xyz[1], xyz[2]};
-     std::array<double, 3> mom{pxpypz[0], pxpypz[1], pxpypz[2]};
+     o2::gpu::gpustd::array<double, 3> ver{xyz[0], xyz[1], xyz[2]};
+     o2::gpu::gpustd::array<double, 3> mom{pxpypz[0], pxpypz[1], pxpypz[2]};
      //
      // Rotate to the local coordinate system
-     YO2::RotateZ(ver, -alp);
-     YO2::RotateZ(mom, -alp);
+     o2::math_utils::detail::rotateZ<double>(ver, -alp);
+     o2::math_utils::detail::rotateZ<double>(mom, -alp);
      //
      double ptI = 1.f / sqrt(mom[0] * mom[0] + mom[1] * mom[1]);
      
@@ -196,13 +199,13 @@ struct YImpactParameter {
      yP[1] = ver[2];
      yP[2] = mom[1] * ptI;
      yP[3] = mom[2] * ptI;
-     yAbsCharge = YO2::Abs(charge);
+     yAbsCharge = o2::math_utils::detail::abs<double>(charge);
      yP[4] = charge ? ptI * charge : ptI;
      //mPID = pid;
      //
-     if (YO2::Abs(1 - yP[2]) < kSafe) {
+     if (o2::math_utils::detail::abs<double>(1 - yP[2]) < kSafe) {
        yP[2] = 1.f - kSafe; // Protection
-     } else if (YO2::Abs(-1 - yP[2]) < kSafe) {
+     } else if (o2::math_utils::detail::abs<double>(-1 - yP[2]) < kSafe) {
        yP[2] = -1.f + kSafe; // Protection
      }
      //
@@ -223,7 +226,7 @@ struct YImpactParameter {
       xt -= x;
       yt -= y;
 
-      float rp4 = yP[4] * bz * YO2::kB2C;//getCurvature(bz);
+      float rp4 = yP[4] * bz * o2::constants::math::B2C;//getCurvature(bz);
       float Almost0 = 1e-12;
       if ((TMath::Abs(bz) < Almost0) || (TMath::Abs(rp4) < Almost0)) {
         ip[0] = -(xt * f1 - yt * r1);

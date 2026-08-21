@@ -238,6 +238,57 @@ struct NullStream {
 
 } // namespace YO2
 
+// ---------------------------------------------------------------------------
+//  The names the module actually writes.
+//
+// YMultiLayerPerceptron.{h,cxx} spell these o2::..., exactly as the original
+// module spells them, and are left that way: with O2 those names are O2's own, and
+// without O2 they are these. So neither file needs an #ifdef or an edit at any of
+// the arithmetic call sites -- and with YGEOM_USE_O2 defined, both preprocess to
+// the original module byte for byte.
+//
+// Signatures follow the O2 declarations exactly, including the explicit template
+// argument each call site passes, so that the same source binds under both
+// backends. Everything forwards to the YO2:: definitions above.
+// ---------------------------------------------------------------------------
+namespace o2 {
+
+namespace constants { namespace math {
+constexpr float B2C    = YO2::kB2C;
+constexpr float PI     = YO2::kPI;
+constexpr float TwoPI  = YO2::kTwoPI;
+constexpr float PIHalf = YO2::kPIHalf;
+} }
+
+// GPU/Common/GPUCommonArray.h:38 -- on the host this is exactly what O2 does.
+namespace gpu { namespace gpustd {
+template <class T, std::size_t N> using array = std::array<T, N>;
+} }
+
+namespace math_utils { namespace detail {
+
+template <class T> T atan2(T y, T x);
+template <> inline double atan2<double>(double y, double x) { return YO2::ATan2(y, x); }
+
+template <class T> T angle2Alpha(T phi);
+template <> inline double angle2Alpha<double>(double phi) { return YO2::Angle2Alpha(phi); }
+
+template <class T> T abs(T x);
+template <> inline double abs<double>(double x) { return YO2::Abs(x); }
+
+// Called without an explicit template argument, and deduced as double at both sites.
+inline void sincos(double a, double& s, double& c) { YO2::SinCos(a, s, c); }
+
+template <class T> void rotateZ(gpu::gpustd::array<T, 3>& v, T alpha);
+template <> inline void rotateZ<double>(gpu::gpustd::array<double, 3>& v, double alpha)
+{
+   YO2::RotateZ(v, alpha);
+}
+
+} } // namespace math_utils::detail
+
+} // namespace o2
+
 #endif // YGEOM_USE_O2
 
 #ifndef LOG
