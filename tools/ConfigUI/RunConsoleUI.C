@@ -50,7 +50,8 @@ private:
    TGComboBox    *fGeomBackend;
    TGLabel       *fModuleInfo, *fStepInfo;
    // Job: size and model
-   TGNumberEntry *fNData, *fNEpoch, *fNCore, *fJPar, *fNTrackMax, *fDetMag;
+   TGNumberEntry *fNData, *fNEpoch, *fNCore, *fJPar, *fNTrackMax;
+   TGTextEntry   *fDetMag;
    TGComboBox    *fFitModel, *fVertexFit, *fMethod;
    TGLabel       *fJobSummary;
    // Job: learning
@@ -206,8 +207,11 @@ TGNumberEntry *AlignRunConsoleUI::AddReal(TGCompositeFrame *tab, const char *lab
    TGLabel *rl = new TGLabel(r, label);
    rl->SetWidth(160); rl->SetTextJustify(kTextRight);
    r->AddFrame(rl, new TGLayoutHints(kLHintsCenterY, 4, 6, 3, 3));
-   // Any number: DET_MAG is signed, and its sign is the whole point.
-   TGNumberEntry *n = new TGNumberEntry(r, 0, 9, -1, TGNumberFormat::kNESRealThree,
+   // kNESReal, not kNESRealThree. The fixed-fraction styles round to their declared
+   // number of decimals without saying so, and these are physics constants read back
+   // out of a file -- three decimals turned -0.500673 into -0.501. Any number, since
+   // several of these are signed.
+   TGNumberEntry *n = new TGNumberEntry(r, 0, 12, -1, TGNumberFormat::kNESReal,
                                         TGNumberFormat::kNEAAnyNumber);
    n->Connect("ValueSet(Long_t)", "AlignRunConsoleUI", this, "UpdateSummary()");
    r->AddFrame(n, new TGLayoutHints(kLHintsCenterY, 0, 4, 3, 3));
@@ -370,7 +374,11 @@ void AlignRunConsoleUI::BuildJob(TGCompositeFrame *tab)
    fNCore     = AddInt (tab, "nCORE",     1, 256);
    fJPar      = AddInt (tab, "jparallel", 0, 256);
    fNTrackMax = AddInt (tab, "nTrackMax", 2, 200);
-   fDetMag    = AddReal(tab, "DET_MAG (T)");
+   // A text field, not a number entry, for the same reason UpdateScale is one: a
+   // TGNumberEntry carries a fixed number of decimals and silently rounds to them.
+   // The shipped -0.500673 came back as -0.501, a 0.065% error in the field that
+   // sets the track curvature. Here whatever is typed is what reaches the file.
+   fDetMag    = MakeRow(tab, "DET_MAG (T)", "");
    fFitModel  = AddCombo(tab, "FITMODEL", "1 2");
    fVertexFit = AddCombo(tab, "VERTEXFIT", "kFALSE kTRUE");
    fMethod    = AddCombo(tab, "Learning method",
@@ -491,7 +499,7 @@ void AlignRunConsoleUI::LoadAll()
    fNCore    ->SetIntNumber(Get("JOB_NCORE").Atoll());
    fJPar     ->SetIntNumber(Get("JOB_JPARALLEL").Atoll());
    fNTrackMax->SetIntNumber(Get("JOB_NTRACKMAX").Atoll());
-   fDetMag   ->SetNumber(Get("JOB_DET_MAG").Atof());
+   fDetMag   ->SetText(Get("JOB_DET_MAG"));
    SelectByName(fFitModel,  Get("JOB_FITMODEL"));
    SelectByName(fVertexFit, Get("JOB_VERTEXFIT"));
    SelectByName(fMethod,    Get("JOB_LEARNING_METHOD"));
@@ -646,7 +654,7 @@ void AlignRunConsoleUI::OnSave()
    args += TString::Format(" JOB_NCORE=%lld",     (Long64_t)fNCore->GetIntNumber());
    args += TString::Format(" JOB_JPARALLEL=%lld", (Long64_t)fJPar->GetIntNumber());
    args += TString::Format(" JOB_NTRACKMAX=%lld", (Long64_t)fNTrackMax->GetIntNumber());
-   args += TString::Format(" JOB_DET_MAG=%.6g",   fDetMag->GetNumber());
+   args += TString::Format(" JOB_DET_MAG=%s",     fDetMag->GetText());
    args += " JOB_FITMODEL="        + Quote(SelectedName(fFitModel));
    args += " JOB_VERTEXFIT="       + Quote(SelectedName(fVertexFit));
    args += " JOB_LEARNING_METHOD=" + Quote(SelectedName(fMethod));
