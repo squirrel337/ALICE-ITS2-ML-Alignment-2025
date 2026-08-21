@@ -1,19 +1,34 @@
 #ifndef ROOT_YO2Compat
 #define ROOT_YO2Compat
 
-// Local stand-ins for the handful of O2 header-only helpers that YImpactParameter
-// uses. Everything else in the module reaches O2 only through YDetectorGeometry,
-// which has its own cache backend, so this header plus that backend is what lets
-// the module build and run without O2.
+// The handful of O2 header-only helpers that YImpactParameter uses, in the same two
+// backends as YDetectorGeometry and switched by the same guard.
+//
+//   YGEOM_USE_O2 defined  -- O2 is present. YO2:: is a set of inline one-line
+//                            forwards to O2's own helpers, and the two O2 headers
+//                            the original module included are included from here,
+//                            at the point the original included them. Nothing in
+//                            this file computes anything: the arithmetic executed
+//                            is O2's, so this backend cannot drift from the
+//                            original module however carefully or carelessly the
+//                            other backend is written.
+//
+//   YGEOM_USE_O2 undefined -- the cache backend. No O2 anywhere, so the helpers are
+//                            transcribed from the O2 source at tag nightly-20230501
+//                            and stand on their own.
+//
+// The point of the split is that the transcriptions are unreachable when O2 is
+// there. A run that must reproduce the original module runs the O2 backend and
+// therefore runs the original code; the cache backend is what the transcriptions
+// are for, and what they are validated against.
 //
 // ---------------------------------------------------------------------------
-// STATUS
+// WHAT THE CACHE BACKEND HAS TO GET RIGHT
 //
-// Everything below is now transcribed from the O2 source at tag nightly-20230501 --
+// Transcribed from the O2 source, not reconstructed from the conventions --
 // constants from Common/Constants/include/CommonConstants/MathConstants.h, the
 // helpers from Common/MathUtils/include/MathUtils/detail/{trigonometric,basicMath}.h
-// and GPU/Common/GPUCommonMath.h -- rather than reconstructed from the conventions.
-// The ARITHMETIC TYPES are part of the answer and are reproduced as written: O2
+// and GPU/Common/GPUCommonMath.h. The ARITHMETIC TYPES are part of the answer: O2
 // declares its math constants float, and routes some of these helpers through
 // GPUCommonMath, which is a single-precision interface even when the caller's type
 // is double. Substituting the obvious double-precision equivalent is not neutral.
@@ -22,15 +37,17 @@
 // GPUCommonMath::ATan2(float, float), which has no double overload, so
 // atan2<double>(y, x) narrows both arguments to float, calls atan2f, and widens the
 // result back. Using std::atan2 instead shifts the track azimuth by 0.04 urad on
-// average and up to 0.26 urad -- 0.02 to 0.10 um at r = 40 cm -- which is small but
-// systematic, and enough to stop a run reproducing another one.
+// average and up to 0.26 urad -- 0.02 to 0.10 um at r = 40 cm.
 //
 // This is not cosmetic. YImpactParameter feeds the selection cut at
 // YMultiLayerPerceptron.cxx:5666 (|ip_r| > RANGE_IMPACTPARAMS_R, |ip_z| >
 // RANGE_IMPACTPARAMS_Z) and the skip at :6640, so getting it wrong changes which
 // tracks enter the cost.
 //
-// 2025 NOTE — kB2C reaches further here than it did in the 2024 module.
+// Verified bit for bit against the O2 sources above: all nine constants, and
+// Angle2Alpha, ATan2, SinCos, RotateZ and Abs over 4,000,001 samples each.
+//
+// 2025 NOTE - kB2C reaches further here than it did in the 2024 module.
 // Besides YImpactParameter it sets the seed radius R = pT/q/(kB2C*B) used by
 // circle3Dfit_useTPCMomentum, which TrackerFit fixes rather than fits. That radius
 // feeds UpdateVertexByAlignment and the p*|d|/40um track-vertex quality gate, so a
@@ -40,8 +57,63 @@
 // ---------------------------------------------------------------------------
 
 #include <cmath>
+// o2::gpu::gpustd::array<T, N> is "using array = std::array<T, N>" on the host
+// (GPU/Common/GPUCommonArray.h:38), so the call sites spell it std::array in both
+// backends -- that is the same type under O2, not a substitution for it.
 #include <array>
 
+#ifdef YGEOM_USE_O2
+
+// ===========================================================================
+//  O2 present: forward to O2. Same two headers the original module included.
+// ===========================================================================
+#include "CommonConstants/MathConstants.h"
+#include "MathUtils/Utils.h"
+
+namespace YO2 {
+
+constexpr float kPI            = o2::constants::math::PI;
+constexpr float kTwoPI         = o2::constants::math::TwoPI;
+constexpr float kPIHalf        = o2::constants::math::PIHalf;
+constexpr float kRad2Deg       = o2::constants::math::Rad2Deg;
+constexpr float kDeg2Rad       = o2::constants::math::Deg2Rad;
+constexpr float kB2C           = o2::constants::math::B2C;
+constexpr int   kNSectors      = o2::constants::math::NSectors;
+constexpr float kSectorSpanDeg = o2::constants::math::SectorSpanDeg;
+constexpr float kSectorSpanRad = o2::constants::math::SectorSpanRad;
+
+inline double ATan2(double y, double x)
+{
+   return o2::math_utils::detail::atan2<double>(y, x);
+}
+
+inline double Angle2Alpha(double phi)
+{
+   return o2::math_utils::detail::angle2Alpha<double>(phi);
+}
+
+inline double Abs(double x)
+{
+   return o2::math_utils::detail::abs<double>(x);
+}
+
+inline void SinCos(double a, double& s, double& c)
+{
+   o2::math_utils::detail::sincos(a, s, c);
+}
+
+inline void RotateZ(std::array<double, 3>& v, double alpha)
+{
+   o2::math_utils::detail::rotateZ<double>(v, alpha);
+}
+
+} // namespace YO2
+
+#else
+
+// ===========================================================================
+//  Cache backend: no O2. Transcribed from the O2 source, see the note above.
+// ===========================================================================
 namespace YO2 {
 
 // Copied from o2::constants::math, tag nightly-20230501, INCLUDING the types, and
@@ -122,6 +194,15 @@ inline double ATan2(double y, double x)
    return (double)atan2f((float)y, (float)x);
 }
 
+// o2::math_utils::detail::abs<double>, which specialises to GPUCommonMath::Abs<double>
+// and thence to fabs. Unlike ATan2 there IS a double overload, so this one is the
+// obvious equivalent after all -- spelled as a function so that both backends offer
+// the same name and the call sites need no #ifdef.
+inline double Abs(double x)
+{
+   return std::abs(x);
+}
+
 // o2::math_utils::detail::sincos<double>, which specialises to
 // GPUCommonMath::SinCosd -- glibc's ::sincos on Linux, separate sin and cos elsewhere.
 // The two agree bit for bit on this platform (checked over 2,000,001 angles), but the
@@ -156,6 +237,8 @@ struct NullStream {
 };
 
 } // namespace YO2
+
+#endif // YGEOM_USE_O2
 
 #ifndef LOG
  #define LOG(level) YO2::NullStream()

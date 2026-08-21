@@ -19,10 +19,12 @@
 #include "TMultiLayerPerceptron.h"
 #include "YNeuron.h"
 #include "DetectorConstant.h"
-#include "YO2Compat.h"
 #include "YSensorCorrection.h"
 #include "DataInputStructure.h"
 
+// With YGEOM_USE_O2 this is where CommonConstants/MathConstants.h and
+// MathUtils/Utils.h come in -- the same two headers, at the same point.
+#include "YO2Compat.h"
 
 class TTree;
 class TEventList;
@@ -163,14 +165,14 @@ struct YImpactParameter {
      }
 
      // protection:  avoid alpha being too close to 0 or +-pi/2
-     if (std::abs(sn) < 2 * kSafe) {
+     if (YO2::Abs(sn) < 2 * kSafe) {
        if (alp > 0) {
          alp += alp < YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
        } else {
          alp += alp > -YO2::kPIHalf ? -2 * kSafe : 2 * kSafe;
        }
        YO2::SinCos(alp, sn, cs);
-     } else if (std::abs(cs) < 2 * kSafe) {
+     } else if (YO2::Abs(cs) < 2 * kSafe) {
        if (alp > 0) {
          alp += alp > YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
        } else {
@@ -194,13 +196,13 @@ struct YImpactParameter {
      yP[1] = ver[2];
      yP[2] = mom[1] * ptI;
      yP[3] = mom[2] * ptI;
-     yAbsCharge = std::abs(charge);
+     yAbsCharge = YO2::Abs(charge);
      yP[4] = charge ? ptI * charge : ptI;
      //mPID = pid;
      //
-     if (std::abs(1 - yP[2]) < kSafe) {
+     if (YO2::Abs(1 - yP[2]) < kSafe) {
        yP[2] = 1.f - kSafe; // Protection
-     } else if (std::abs(-1 - yP[2]) < kSafe) {
+     } else if (YO2::Abs(-1 - yP[2]) < kSafe) {
        yP[2] = -1.f + kSafe; // Protection
      }
      //
