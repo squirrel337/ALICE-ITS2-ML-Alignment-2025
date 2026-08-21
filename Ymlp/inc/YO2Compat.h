@@ -9,15 +9,21 @@
 // ---------------------------------------------------------------------------
 // STATUS
 //
-// The constants are now copied from the O2 source at tag nightly-20230501, types
-// included, and check out to every digit -- see the note on them below. They were
-// previously reconstructed from the conventions, and were wrong in the eighth digit.
+// Everything below is now transcribed from the O2 source at tag nightly-20230501 --
+// constants from Common/Constants/include/CommonConstants/MathConstants.h, the
+// helpers from Common/MathUtils/include/MathUtils/detail/{trigonometric,basicMath}.h
+// and GPU/Common/GPUCommonMath.h -- rather than reconstructed from the conventions.
+// The ARITHMETIC TYPES are part of the answer and are reproduced as written: O2
+// declares its math constants float, and routes some of these helpers through
+// GPUCommonMath, which is a single-precision interface even when the caller's type
+// is double. Substituting the obvious double-precision equivalent is not neutral.
 //
-// Angle2Alpha's LOGIC is still reconstructed: it quantises an azimuth to the centre
-// of the 20-degree sector containing it, which is what o2::math_utils::detail::
-// angle2Alpha (MathUtils/detail/basicMath.h) does, but the branch structure here was
-// written from the description rather than transcribed. The constants it uses are
-// now O2's, so any remaining disagreement is in the wrapping, not the arithmetic.
+// The sharpest case is ATan2. O2's detail::atan2<T> forwards to
+// GPUCommonMath::ATan2(float, float), which has no double overload, so
+// atan2<double>(y, x) narrows both arguments to float, calls atan2f, and widens the
+// result back. Using std::atan2 instead shifts the track azimuth by 0.04 urad on
+// average and up to 0.26 urad -- 0.02 to 0.10 um at r = 40 cm -- which is small but
+// systematic, and enough to stop a run reproducing another one.
 //
 // This is not cosmetic. YImpactParameter feeds the selection cut at
 // YMultiLayerPerceptron.cxx:5666 (|ip_r| > RANGE_IMPACTPARAMS_R, |ip_z| >
@@ -38,7 +44,9 @@
 
 namespace YO2 {
 
-// Copied from o2::constants::math, tag nightly-20230501, INCLUDING the types.
+// Copied from o2::constants::math, tag nightly-20230501, INCLUDING the types, and
+// checked constant by constant against that header: same expressions, same order of
+// evaluation, identical bit patterns.
 //
 // These were previously double, reconstructed from the conventions rather than
 // taken from the source, and every one of them was wrong in the eighth digit.
@@ -72,15 +80,17 @@ constexpr float kSectorSpanRad = kSectorSpanDeg * kDeg2Rad;
 // sector containing it.
 inline double Angle2Alpha(double phi)
 {
-   // o2::math_utils::detail::angle2Alpha = sector2Angle(angle2Sector(phi)),
-   // transcribed rather than paraphrased, because the arithmetic types are part of
-   // the answer. In O2 both SectorSpanRad and (0.5f + sect) are float, so the product
-   // is evaluated in FLOAT and only then widened -- computing it in double gives a
+   // detail::angle2Alpha<T> = sector2Angle<T>(angle2Sector<T>(phi)), inlined here
+   // from MathUtils/detail/trigonometric.h. The arithmetic types are part of the
+   // answer: SectorSpanRad and (0.5f + sect) are both float, so the product is
+   // evaluated in FLOAT and only then widened to T -- computing it in double gives a
    // different number in the eighth digit for 17 sectors out of 18.
    //
-   // The negative-phi branch is also not a mirror of the positive one: O2 adds
-   // NSectors-1 and lets bringToPMPi wrap the result, where subtracting one sector
-   // would differ by 18*SectorSpanRad - TwoPI, which is not zero in float.
+   // The negative-phi branch is not a mirror of the positive one: angle2Sector adds
+   // NSectors-1 and lets sector2Angle's bringToPMPi wrap the result, where
+   // subtracting one sector would differ by 18*SectorSpanRad - TwoPI, not zero in
+   // float. The wrap itself is detail::toPMPi: one conditional step, > PI tested
+   // before < -PI, not a loop.
    int sect = phi * kRad2Deg / kSectorSpanDeg;
    if (phi < 0.f) {
       sect += kNSectors - 1;
@@ -94,16 +104,49 @@ inline double Angle2Alpha(double phi)
    return ang;
 }
 
-// o2::math_utils::detail::rotateZ, acting in place on a 3-vector
+// o2::math_utils::detail::atan2<double>.
+//
+// NOT std::atan2. O2's detail::atan2<T> is a one-line forward to
+// o2::gpu::GPUCommonMath::ATan2, declared
+//
+//    GPUhdi() static float ATan2(float y, float x);
+//    ... { return CHOICE(atan2f(y, x), atan2f(y, x), atan2(y, x)); }   // host: atan2f
+//
+// with no double overload anywhere in GPUCommonMath.h. Instantiating it at T = double
+// therefore narrows y and x to float, evaluates atan2f in single precision, and widens
+// the float result back to double through the template's return type. Reproducing that
+// is the whole point of this function: see the note at the top of the file for what
+// using the double-precision routine instead costs.
+inline double ATan2(double y, double x)
+{
+   return (double)atan2f((float)y, (float)x);
+}
+
+// o2::math_utils::detail::sincos<double>, which specialises to
+// GPUCommonMath::SinCosd -- glibc's ::sincos on Linux, separate sin and cos elsewhere.
+// The two agree bit for bit on this platform (checked over 2,000,001 angles), but the
+// point of this header is to transcribe rather than to rely on that.
+inline void SinCos(double a, double& s, double& c)
+{
+#if defined(_GNU_SOURCE) || defined(__GNU_SOURCE__)
+   ::sincos(a, &s, &c);
+#else
+   s = std::sin(a);
+   c = std::cos(a);
+#endif
+}
+
+// o2::math_utils::detail::rotateZ, acting in place on a 3-vector. O2 takes its sine
+// and cosine from the same sincos<T> as above, hence the call rather than std::sin and
+// std::cos here.
 inline void RotateZ(std::array<double, 3>& v, double alpha)
 {
-   const double s = std::sin(alpha), c = std::cos(alpha);
+   double s, c;
+   SinCos(alpha, s, c);
    const double x = v[0], y = v[1];
    v[0] = x * c - y * s;
    v[1] = x * s + y * c;
 }
-
-inline void SinCos(double a, double& s, double& c) { s = std::sin(a); c = std::cos(a); }
 
 // A sink for O2's LOG(level) macro, used once in YImpactParameter. O2 routes
 // LOG(debug) to FairLogger, where debug level is suppressed by default, so

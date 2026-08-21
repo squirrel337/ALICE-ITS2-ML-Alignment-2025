@@ -142,9 +142,9 @@ struct YImpactParameter {
      double radPos2 = xyz[0] * xyz[0] + xyz[1] * xyz[1];
      double alp = 0;
      if (sectorAlpha || radPos2 < 1) {
-       alp = std::atan2(pxpypz[1], pxpypz[0]);
+       alp = YO2::ATan2(pxpypz[1], pxpypz[0]);
      } else {
-       alp = std::atan2(xyz[1], xyz[0]);
+       alp = YO2::ATan2(xyz[1], xyz[0]);
      }
      if (sectorAlpha) {
        alp = YO2::Angle2Alpha(alp);
@@ -155,7 +155,7 @@ struct YImpactParameter {
      // protection against cosp<0
      if (cs * pxpypz[0] + sn * pxpypz[1] < 0) {
        LOG(debug) << "alpha from phiPos() will invalidate this track parameters, overriding to alpha from phi()";
-       alp = std::atan2(pxpypz[1], pxpypz[0]);
+       alp = YO2::ATan2(pxpypz[1], pxpypz[0]);
        if (sectorAlpha) {
          alp = YO2::Angle2Alpha(alp);
        }
