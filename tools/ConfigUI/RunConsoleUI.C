@@ -55,14 +55,15 @@ private:
    TGComboBox    *fFitModel, *fVertexFit, *fMethod;
    TGLabel       *fJobSummary;
    // Job: learning
-   TGNumberEntry *fEtaConst, *fEtaDetres, *fValidWindow;
-   TGTextEntry   *fEtaScale;
+   TGTextEntry   *fEtaConst, *fEtaDetres, *fValidWindow, *fEtaScale;
    TGLabel       *fEtaLabel;
    // Job: selection
-   TGNumberEntry *fPtMin, *fPtMax, *fChiIB, *fChiOB, *fChiIBTr, *fChiOBTr;
-   TGNumberEntry *fTrackReject, *fIpR, *fIpZ, *fMinCluster;
+   TGTextEntry   *fPtMin, *fPtMax, *fChiIB, *fChiOB, *fChiIBTr, *fChiOBTr;
+   TGTextEntry   *fTrackReject, *fIpR, *fIpZ;
+   TGNumberEntry *fMinCluster;
    // adaptive vertex estimation -- 2025 only
-   TGNumberEntry *fQualVtx, *fQualTrkVtx, *fMaxBadTracks;
+   TGTextEntry   *fQualVtx, *fQualTrkVtx;
+   TGNumberEntry *fMaxBadTracks;
    TGComboBox    *fVertexDeriv;
    TGLabel       *fVertexLabel;
    // Run
@@ -79,7 +80,7 @@ private:
 
    TGTextEntry   *MakeRow(TGCompositeFrame *p, const char *label, const char *slot);
    TGNumberEntry *AddInt(TGCompositeFrame *tab, const char *label, Long_t lo, Long_t hi);
-   TGNumberEntry *AddReal(TGCompositeFrame *tab, const char *label);
+   TGTextEntry   *AddReal(TGCompositeFrame *tab, const char *label);
    TGComboBox    *AddCombo(TGCompositeFrame *tab, const char *label, const char *items);
    void           Note(TGCompositeFrame *tab, const char *text, Int_t padTop);
 
@@ -201,22 +202,41 @@ TGNumberEntry *AlignRunConsoleUI::AddInt(TGCompositeFrame *tab, const char *labe
    return n;
 }
 
-TGNumberEntry *AlignRunConsoleUI::AddReal(TGCompositeFrame *tab, const char *label)
+// Every parameter that carries a decimal point is a text field, which is what the
+// 2024 console does for UpdateScale -- here it is the rule rather than the exception.
+//
+// A TGNumberEntry cannot be the field for these. It holds a double and formats it
+// through its own style, so the string that reaches DetectorConstant.h is whatever
+// the widget chooses to print, not what was typed: kNESRealThree rounded the shipped
+// DET_MAG -0.500673 to -0.501, kNESReal drops trailing zeros so Update_pTmax 10.00
+// arrives as 10, and 1.0e-8 has no fixed-point spelling at all. On the way back in,
+// Atof() then reparses whatever survived.
+//
+// A text entry has no opinion. What is typed is what is stored in
+// runconsole.conf and what rc_patch_define writes into the header, character for
+// character -- 0.30 stays 0.30, -0.500673 stays -0.500673, 1.0e-8 stays 1.0e-8.
+// Nothing is lost, and a value read out of the module comes back looking like itself.
+//
+// Free text needs a validator, and there already is one: runctl.sh types these keys
+// 'num' and rc_validate matches them against ^-?[0-9]+([.][0-9]*)?([eE][-+]?[0-9]+)?$
+// on every save, refusing the write and printing the offending key. Doing it in the
+// shell keeps one rule for the UI, the command line and compose alike, instead of a
+// second one here that could disagree.
+TGTextEntry *AlignRunConsoleUI::AddReal(TGCompositeFrame *tab, const char *label)
 {
    TGHorizontalFrame *r = new TGHorizontalFrame(tab);
    TGLabel *rl = new TGLabel(r, label);
    rl->SetWidth(200); rl->SetTextJustify(kTextRight);
    r->AddFrame(rl, new TGLayoutHints(kLHintsCenterY, 4, 6, 3, 3));
-   // kNESReal, not kNESRealThree. The fixed-fraction styles round to their declared
-   // number of decimals without saying so, and these are physics constants read back
-   // out of a file -- three decimals turned -0.500673 into -0.501. Any number, since
-   // several of these are signed.
-   TGNumberEntry *n = new TGNumberEntry(r, 0, 12, -1, TGNumberFormat::kNESReal,
-                                        TGNumberFormat::kNEAAnyNumber);
-   n->Connect("ValueSet(Long_t)", "AlignRunConsoleUI", this, "UpdateSummary()");
-   r->AddFrame(n, new TGLayoutHints(kLHintsCenterY, 0, 4, 3, 3));
+
+   TGTextEntry *e = new TGTextEntry(r, "");
+   // Sized like the number entries it replaces rather than stretched across the tab:
+   // these are short numbers, and a full-width box invites pasting a path into one.
+   e->Resize(150, e->GetDefaultHeight());
+   e->Connect("ReturnPressed()", "AlignRunConsoleUI", this, "UpdateSummary()");
+   r->AddFrame(e, new TGLayoutHints(kLHintsCenterY, 0, 4, 3, 3));
    tab->AddFrame(r, new TGLayoutHints(kLHintsExpandX, 2, 2, 1, 1));
-   return n;
+   return e;
 }
 
 TGComboBox *AlignRunConsoleUI::AddCombo(TGCompositeFrame *tab, const char *label,
@@ -374,11 +394,7 @@ void AlignRunConsoleUI::BuildJob(TGCompositeFrame *tab)
    fNCore     = AddInt (tab, "nCORE",     1, 256);
    fJPar      = AddInt (tab, "jparallel", 0, 256);
    fNTrackMax = AddInt (tab, "nTrackMax", 2, 200);
-   // A text field, not a number entry, for the same reason UpdateScale is one: a
-   // TGNumberEntry carries a fixed number of decimals and silently rounds to them.
-   // The shipped -0.500673 came back as -0.501, a 0.065% error in the field that
-   // sets the track curvature. Here whatever is typed is what reaches the file.
-   fDetMag    = MakeRow(tab, "DET_MAG (T)", "");
+   fDetMag    = AddReal(tab, "DET_MAG (T)");
    fFitModel  = AddCombo(tab, "FITMODEL", "1 2");
    fVertexFit = AddCombo(tab, "VERTEXFIT", "kFALSE kTRUE");
    fMethod    = AddCombo(tab, "Learning method",
@@ -396,7 +412,7 @@ void AlignRunConsoleUI::BuildJob(TGCompositeFrame *tab)
 void AlignRunConsoleUI::BuildLearning(TGCompositeFrame *tab)
 {
    fEtaConst    = AddReal(tab, "UpdateConstant");
-   fEtaScale    = MakeRow(tab, "UpdateScale", "");
+   fEtaScale    = AddReal(tab, "UpdateScale");
    fEtaDetres   = AddReal(tab, "DETRES (um)");
    fValidWindow = AddReal(tab, "ValidWindow (cm)");
 
@@ -496,23 +512,23 @@ void AlignRunConsoleUI::LoadAll()
    SelectByName(fVertexFit, Get("JOB_VERTEXFIT"));
    SelectByName(fMethod,    Get("JOB_LEARNING_METHOD"));
 
-   fEtaConst   ->SetNumber(Get("JOB_ETA_CONSTANT").Atof());
+   fEtaConst   ->SetText(Get("JOB_ETA_CONSTANT"));
    fEtaScale   ->SetText(Get("JOB_ETA_SCALE"));
-   fEtaDetres  ->SetNumber(Get("JOB_ETA_DETRES").Atof());
-   fValidWindow->SetNumber(Get("JOB_VALID_WINDOW").Atof());
+   fEtaDetres  ->SetText(Get("JOB_ETA_DETRES"));
+   fValidWindow->SetText(Get("JOB_VALID_WINDOW"));
 
-   fPtMin      ->SetNumber(Get("JOB_PT_MIN").Atof());
-   fPtMax      ->SetNumber(Get("JOB_PT_MAX").Atof());
-   fChiIB      ->SetNumber(Get("JOB_CHI_IB").Atof());
-   fChiOB      ->SetNumber(Get("JOB_CHI_OB").Atof());
-   fChiIBTr    ->SetNumber(Get("JOB_CHI_IB_TRAIN").Atof());
-   fChiOBTr    ->SetNumber(Get("JOB_CHI_OB_TRAIN").Atof());
-   fTrackReject->SetNumber(Get("JOB_TRACK_REJECT").Atof());
-   fIpR        ->SetNumber(Get("JOB_IP_RANGE_R").Atof());
-   fIpZ        ->SetNumber(Get("JOB_IP_RANGE_Z").Atof());
+   fPtMin      ->SetText(Get("JOB_PT_MIN"));
+   fPtMax      ->SetText(Get("JOB_PT_MAX"));
+   fChiIB      ->SetText(Get("JOB_CHI_IB"));
+   fChiOB      ->SetText(Get("JOB_CHI_OB"));
+   fChiIBTr    ->SetText(Get("JOB_CHI_IB_TRAIN"));
+   fChiOBTr    ->SetText(Get("JOB_CHI_OB_TRAIN"));
+   fTrackReject->SetText(Get("JOB_TRACK_REJECT"));
+   fIpR        ->SetText(Get("JOB_IP_RANGE_R"));
+   fIpZ        ->SetText(Get("JOB_IP_RANGE_Z"));
    fMinCluster ->SetIntNumber(Get("JOB_MIN_CLUSTER").Atoll());
-   fQualVtx      ->SetNumber(Get("JOB_QUALITY_VERTEXING").Atof());
-   fQualTrkVtx   ->SetNumber(Get("JOB_QUALITY_TRACKVERTEX").Atof());
+   fQualVtx      ->SetText(Get("JOB_QUALITY_VERTEXING"));
+   fQualTrkVtx   ->SetText(Get("JOB_QUALITY_TRACKVERTEX"));
    fMaxBadTracks ->SetIntNumber(Get("JOB_MAX_BAD_TRACKS").Atoll());
    SelectByName(fVertexDeriv, Get("JOB_VERTEX_DERIVATIVES"));
 
@@ -622,7 +638,14 @@ void AlignRunConsoleUI::OnSave()
    // out as an empty setting -- silently losing it.
    const char *texts[] = { fData->GetText(), fTree->GetText(), fGeom->GetText(),
                            fAlign->GetText(), fParams->GetText(), fModuleDir->GetText(),
-                           fEtaScale->GetText(), fOutDir->GetText(), fTag->GetText(),
+                           fDetMag->GetText(), fEtaConst->GetText(), fEtaScale->GetText(),
+                           fEtaDetres->GetText(), fValidWindow->GetText(),
+                           fPtMin->GetText(), fPtMax->GetText(),
+                           fChiIB->GetText(), fChiOB->GetText(),
+                           fChiIBTr->GetText(), fChiOBTr->GetText(),
+                           fTrackReject->GetText(), fIpR->GetText(), fIpZ->GetText(),
+                           fQualVtx->GetText(), fQualTrkVtx->GetText(),
+                           fOutDir->GetText(), fTag->GetText(),
                            fRootSys->GetText(), 0 };
    for (Int_t i = 0; texts[i]; ++i) {
       if (TString(texts[i]).Contains("'")) {
@@ -632,45 +655,45 @@ void AlignRunConsoleUI::OnSave()
    }
 
    TString args = "set";
-   args += " DATA_FILE="      + Quote(fData->GetText());
-   args += " DATA_TREE="      + Quote(fTree->GetText());
-   args += " GEOM_FILE="      + Quote(fGeom->GetText());
-   args += " ALIGN_FILE="     + Quote(fAlign->GetText());
-   args += " PARAMS_ARCHIVE=" + Quote(fParams->GetText());
-   args += " MODULE_DIR="     + Quote(fModuleDir->GetText());
+   args += " DATA_FILE="               + Quote(fData->GetText());
+   args += " DATA_TREE="               + Quote(fTree->GetText());
+   args += " GEOM_FILE="               + Quote(fGeom->GetText());
+   args += " ALIGN_FILE="              + Quote(fAlign->GetText());
+   args += " PARAMS_ARCHIVE="          + Quote(fParams->GetText());
+   args += " MODULE_DIR="              + Quote(fModuleDir->GetText());
    args += TString::Format(" FIRST_STEP=%lld",    (Long64_t)fFirstStep->GetIntNumber());
    args += TString::Format(" N_STEPS=%lld",       (Long64_t)fNSteps->GetIntNumber());
-   args += " GEOM_BACKEND=" + Quote(SelectedName(fGeomBackend));
+   args += " GEOM_BACKEND="            + Quote(SelectedName(fGeomBackend));
    args += TString::Format(" JOB_NDATA=%lld",     (Long64_t)fNData->GetIntNumber());
    args += TString::Format(" JOB_NEPOCH=%lld",    (Long64_t)fNEpoch->GetIntNumber());
    args += TString::Format(" JOB_NCORE=%lld",     (Long64_t)fNCore->GetIntNumber());
    args += TString::Format(" JOB_JPARALLEL=%lld", (Long64_t)fJPar->GetIntNumber());
    args += TString::Format(" JOB_NTRACKMAX=%lld", (Long64_t)fNTrackMax->GetIntNumber());
-   args += TString::Format(" JOB_DET_MAG=%s",     fDetMag->GetText());
-   args += " JOB_FITMODEL="        + Quote(SelectedName(fFitModel));
-   args += " JOB_VERTEXFIT="       + Quote(SelectedName(fVertexFit));
-   args += " JOB_LEARNING_METHOD=" + Quote(SelectedName(fMethod));
-   args += TString::Format(" JOB_ETA_CONSTANT=%.6g", fEtaConst->GetNumber());
-   args += " JOB_ETA_SCALE="       + Quote(fEtaScale->GetText());
-   args += TString::Format(" JOB_ETA_DETRES=%.6g",   fEtaDetres->GetNumber());
-   args += TString::Format(" JOB_VALID_WINDOW=%.6g", fValidWindow->GetNumber());
-   args += TString::Format(" JOB_PT_MIN=%.6g",       fPtMin->GetNumber());
-   args += TString::Format(" JOB_PT_MAX=%.6g",       fPtMax->GetNumber());
-   args += TString::Format(" JOB_CHI_IB=%.6g",       fChiIB->GetNumber());
-   args += TString::Format(" JOB_CHI_OB=%.6g",       fChiOB->GetNumber());
-   args += TString::Format(" JOB_CHI_IB_TRAIN=%.6g", fChiIBTr->GetNumber());
-   args += TString::Format(" JOB_CHI_OB_TRAIN=%.6g", fChiOBTr->GetNumber());
-   args += TString::Format(" JOB_TRACK_REJECT=%.6g", fTrackReject->GetNumber());
-   args += TString::Format(" JOB_IP_RANGE_R=%.6g",   fIpR->GetNumber());
-   args += TString::Format(" JOB_IP_RANGE_Z=%.6g",   fIpZ->GetNumber());
+   args += " JOB_DET_MAG="             + Quote(fDetMag->GetText());
+   args += " JOB_FITMODEL="            + Quote(SelectedName(fFitModel));
+   args += " JOB_VERTEXFIT="           + Quote(SelectedName(fVertexFit));
+   args += " JOB_LEARNING_METHOD="     + Quote(SelectedName(fMethod));
+   args += " JOB_ETA_CONSTANT="        + Quote(fEtaConst->GetText());
+   args += " JOB_ETA_SCALE="           + Quote(fEtaScale->GetText());
+   args += " JOB_ETA_DETRES="          + Quote(fEtaDetres->GetText());
+   args += " JOB_VALID_WINDOW="        + Quote(fValidWindow->GetText());
+   args += " JOB_PT_MIN="              + Quote(fPtMin->GetText());
+   args += " JOB_PT_MAX="              + Quote(fPtMax->GetText());
+   args += " JOB_CHI_IB="              + Quote(fChiIB->GetText());
+   args += " JOB_CHI_OB="              + Quote(fChiOB->GetText());
+   args += " JOB_CHI_IB_TRAIN="        + Quote(fChiIBTr->GetText());
+   args += " JOB_CHI_OB_TRAIN="        + Quote(fChiOBTr->GetText());
+   args += " JOB_TRACK_REJECT="        + Quote(fTrackReject->GetText());
+   args += " JOB_IP_RANGE_R="          + Quote(fIpR->GetText());
+   args += " JOB_IP_RANGE_Z="          + Quote(fIpZ->GetText());
    args += TString::Format(" JOB_MIN_CLUSTER=%lld",  (Long64_t)fMinCluster->GetIntNumber());
-   args += TString::Format(" JOB_QUALITY_VERTEXING=%.6g",   fQualVtx->GetNumber());
-   args += TString::Format(" JOB_QUALITY_TRACKVERTEX=%.6g", fQualTrkVtx->GetNumber());
+   args += " JOB_QUALITY_VERTEXING="   + Quote(fQualVtx->GetText());
+   args += " JOB_QUALITY_TRACKVERTEX=" + Quote(fQualTrkVtx->GetText());
    args += TString::Format(" JOB_MAX_BAD_TRACKS=%lld", (Long64_t)fMaxBadTracks->GetIntNumber());
    args += TString::Format(" JOB_VERTEX_DERIVATIVES=%s", SelectedName(fVertexDeriv).Data());
-   args += " OUTPUT_DIR="       + Quote(fOutDir->GetText());
-   args += " JOB_TAG="          + Quote(fTag->GetText());
-   args += " ROOTSYS_OVERRIDE=" + Quote(fRootSys->GetText());
+   args += " OUTPUT_DIR="              + Quote(fOutDir->GetText());
+   args += " JOB_TAG="                 + Quote(fTag->GetText());
+   args += " ROOTSYS_OVERRIDE="        + Quote(fRootSys->GetText());
 
    LogCommand("save", Run(args));
    UpdateSummary();

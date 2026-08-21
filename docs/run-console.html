@@ -260,6 +260,24 @@ footer.page a { color: var(--accent); }
     </tbody>
   </table>
   </div>
+
+  <div class="note">
+    <span class="lbl">Numbers are carried as text, not as doubles</span>
+    <p>
+      Every setting that can carry a decimal point is a plain text field. What you type is
+      what is written to <code>runconsole.conf</code> and what <code>compose</code> writes into
+      <code>DetectorConstant.h</code> and <code>YMultiLayerPerceptron.cxx</code>, character for
+      character: <code>0.30</code> stays <code>0.30</code>, <code>-0.500673</code> stays
+      <code>-0.500673</code>, <code>1.0e-8</code> stays <code>1.0e-8</code>. A spin box would
+      have to hold these as a double and print them back through a fixed format, which rounds
+      (<code>-0.500673</code> became <code>-0.501</code>), drops trailing zeros
+      (<code>10.00</code> became <code>10</code>) and cannot spell <code>1.0e-8</code> at all.
+      Only the counts — steps, nDATA, nEPOCH, nCORE, jparallel, nTrackMax, the cluster minimum
+      and the bad-prong limit — are spin boxes, because whole numbers have one spelling.
+      Free text is checked on Save: <code>runctl.sh</code> refuses the write and names the key
+      if a value is not a number.
+    </p>
+  </div>
 </section>
 
 <section>
