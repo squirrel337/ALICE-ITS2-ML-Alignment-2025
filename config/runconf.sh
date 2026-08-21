@@ -417,6 +417,13 @@ rc_patch_mlpsrc() {
 # Writes or removes the YGEOM_USE_O2 guard in the job's own header. Idempotent: any
 # marker block a previous compose left is dropped first, so switching modes back and
 # forth does not accumulate defines.
+#
+# The define goes immediately after the include guard, ahead of EVERY backend guard in
+# the file -- not before the first #ifdef YGEOM_USE_O2. The header also carries an
+# #ifndef YGEOM_USE_O2 block (the ROOT includes the O2 headers would otherwise supply),
+# and that one comes first; anchoring on the #ifdef would leave it on the wrong side of
+# the define and pull those includes into an O2 build, which is exactly the kind of
+# silent difference the backend split exists to prevent.
 rc_patch_geom() {   # file
   local f="$1" tmp
   [ -f "$f" ] || return 0
@@ -424,11 +431,11 @@ rc_patch_geom() {   # file
   awk -v want="$GEOM_BACKEND" -v mark="$RC_GEOM_MARK" '
     $0 == mark { drop = 1; next }
     drop == 1  { drop = 0; next }
-    /^#ifdef YGEOM_USE_O2$/ && !done {
+    { print }
+    /^#define ROOT_YDetectorGeometry$/ && !done {
       if (want == "o2") { print mark; print "#define YGEOM_USE_O2 1" }
       done = 1
     }
-    { print }
   ' "$f" > "$tmp" && cat "$tmp" > "$f"
   rm -f "$tmp"
 }
