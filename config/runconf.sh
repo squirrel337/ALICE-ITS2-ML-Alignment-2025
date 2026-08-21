@@ -491,6 +491,29 @@ rc_doctor() {
     _rc_bad "this tree only has the O2 backend; set GEOM_BACKEND=o2"
   fi
 
+  # Every knob the console sets already has a value in the module. Where the two
+  # disagree, composing changes the run -- which is legitimate, and is the point
+  # of the console, but it should never be a surprise. Reporting it is how a
+  # configuration written for one module version is caught before it is used to
+  # drive another. A default that silently retunes the tree it was pointed at is
+  # the failure this check exists to prevent.
+  _rc_drift() {   # label config-value module-value
+    [ -n "$3" ] || return 0
+    if [ "$2" != "$3" ]; then
+      _rc_warn "$1 -- config $2, module has $3 (compose will change it)"
+    fi
+  }
+  _rc_drift "nDATA"     "$JOB_NDATA"     "$RC_MOD_NDATA"
+  _rc_drift "nEPOCH"    "$JOB_NEPOCH"    "$RC_MOD_NEPOCH"
+  _rc_drift "nTrackMax" "$JOB_NTRACKMAX" "$RC_MOD_NTRACKMAX"
+  _rc_drift "DET_MAG"   "$JOB_DET_MAG"   "$RC_MOD_DET_MAG"
+  if [ "$RC_ADAPTIVE_VERTEX" -eq 1 ]; then
+    _rc_drift "QUALITY_VERTEXING"   "$JOB_QUALITY_VERTEXING"   "$RC_MOD_QUALITY_VERTEXING"
+    _rc_drift "QUALITY_TRACKVERTEX" "$JOB_QUALITY_TRACKVERTEX" "$RC_MOD_QUALITY_TRACKVERTEX"
+    _rc_drift "max bad prongs"      "$JOB_MAX_BAD_TRACKS"      "$RC_MOD_MAX_BAD_TRACKS"
+    _rc_drift "VERTEX_DERIVATIVES"  "$JOB_VERTEX_DERIVATIVES"  "$RC_MOD_VERTEX_DERIVATIVES"
+  fi
+
   if [ "$GEOM_BACKEND" = o2 ]; then
     # alienv exports O2_ROOT. Without it the job compiles against headers that are
     # not there, twenty minutes after launch rather than now.
