@@ -261,7 +261,7 @@ TString AlignRunConsoleUI::SelectedName(TGComboBox *c)
 // ---------------------------------------------------------- construction ---
 
 AlignRunConsoleUI::AlignRunConsoleUI(const TGWindow *p, const char *conf)
-   : TGMainFrame(p, 940, 836)
+   : TGMainFrame(p, 940, 920)
 {
    fConf = conf;
    if (fConf.IsNull()) fConf = "config/runconsole.conf";
@@ -278,7 +278,7 @@ AlignRunConsoleUI::AlignRunConsoleUI(const TGWindow *p, const char *conf)
    SetWindowName("ITS2 Run Console");
    SetCleanup(kDeepCleanup);
 
-   TGTab *tabs = new TGTab(this, 930, 517);
+   TGTab *tabs = new TGTab(this, 930, 569);
    BuildInputs   (tabs->AddTab("Inputs"));
    BuildModule   (tabs->AddTab("Module"));
    BuildJob      (tabs->AddTab("Job"));
@@ -314,7 +314,7 @@ AlignRunConsoleUI::AlignRunConsoleUI(const TGWindow *p, const char *conf)
    bar->AddFrame(stop, new TGLayoutHints(kLHintsRight, 4, 0, 4, 4));
    AddFrame(bar, new TGLayoutHints(kLHintsExpandX, 2, 2, 0, 0));
 
-   fLog = new TGTextView(this, 930, 209);
+   fLog = new TGTextView(this, 930, 230);
    AddFrame(fLog, new TGLayoutHints(kLHintsExpandX, 4, 4, 2, 4));
 
    MapSubwindows();
