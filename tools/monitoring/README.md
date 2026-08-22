@@ -40,6 +40,7 @@ repository from its own location, so it works from anywhere. Plot directories ar
 | `check_determinism.sh` | runs one composed job twice and shows where the two logs first differ |
 | `run_to_run.sh` | runs one composed job N times from N pristine copies → `costs.tsv` |
 | `plot_run_to_run.py` | turns one or two `costs.tsv` into statistics and a figure |
+| `weight_spread.py` | per-parameter spread of the epoch-0 weights across repetitions |
 | `compare_weight_files.py` | two weight files, per column / per layer / per sensor |
 
 ## Measuring run-to-run spread
@@ -59,6 +60,15 @@ to clear that band first, so the band has to be measured.
 
     ./tools/monitoring/plot_run_to_run.py spread.png \
         o2=runs/rt-o2.rtr-o2/costs.tsv cache=runs/rt-cache.rtr-cache/costs.tsv
+
+    ./tools/monitoring/weight_spread.py weights.png \
+        o2=runs/rt-o2.rtr-o2/costs.tsv cache=runs/rt-cache.rtr-cache/costs.tsv
+
+`plot_run_to_run.py` compares the cost, one scalar per run. `weight_spread.py` reads
+the `weights_Epoch_At_0.txt` that each repetition wrote — the fifth column of
+`costs.tsv` — and measures how far each of the 24120 x 17 sensor parameters moves
+between repetitions of the same configuration. That band is what any comparison
+between two versions of the module has to beat to mean anything.
 
 Three things that are easy to get wrong:
 
