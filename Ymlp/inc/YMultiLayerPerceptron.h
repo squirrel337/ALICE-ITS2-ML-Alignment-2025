@@ -22,7 +22,7 @@
 #include "YSensorCorrection.h"
 #include "DataInputStructure.h"
 
-#if defined(YGEOM_USE_O2) && !defined(YO2_LOCAL_CONSTANTS)
+#ifdef YGEOM_USE_O2
 #include "CommonConstants/MathConstants.h"
 #include "MathUtils/Utils.h"
 #else
@@ -119,11 +119,7 @@ struct YImpactParameter {
    double yX, yAlpha;
    double yP[5]; // Y, Z, sin(phi), tg(lambda), q/pT
    char yAbsCharge = 1;
-#ifdef YO2_LOCAL_CONSTANTS
-   double ip[2];
-#else
    float ip[2];
-#endif
 
    void Print(){
       std::cout<<" [TrackParameterization by XYZ and pXYZ]"
@@ -151,125 +147,49 @@ struct YImpactParameter {
      double radPos2 = xyz[0] * xyz[0] + xyz[1] * xyz[1];
      double alp = 0;
      if (sectorAlpha || radPos2 < 1) {
-#ifdef YO2_LOCAL_CONSTANTS
-       alp = YO2::ATan2(pxpypz[1], pxpypz[0]);
-#else
        alp = o2::math_utils::detail::atan2<double>(pxpypz[1], pxpypz[0]);
-#endif
      } else {
-#ifdef YO2_LOCAL_CONSTANTS
-       alp = YO2::ATan2(xyz[1], xyz[0]);
-#else
        alp = o2::math_utils::detail::atan2<double>(xyz[1], xyz[0]);
-#endif
      }
      if (sectorAlpha) {
-#ifdef YO2_LOCAL_CONSTANTS
-       alp = YO2::Angle2Alpha(alp);
-#else
        alp = o2::math_utils::detail::angle2Alpha<double>(alp);
-#endif
      }
      //
      double sn, cs;
-#ifdef YO2_LOCAL_CONSTANTS
-     YO2::SinCos(alp, sn, cs);
-#else
      o2::math_utils::detail::sincos(alp, sn, cs);
-#endif
      // protection against cosp<0
      if (cs * pxpypz[0] + sn * pxpypz[1] < 0) {
        LOG(debug) << "alpha from phiPos() will invalidate this track parameters, overriding to alpha from phi()";
-#ifdef YO2_LOCAL_CONSTANTS
-       alp = YO2::ATan2(pxpypz[1], pxpypz[0]);
-#else
        alp = o2::math_utils::detail::atan2<double>(pxpypz[1], pxpypz[0]);
-#endif
        if (sectorAlpha) {
-#ifdef YO2_LOCAL_CONSTANTS
-         alp = YO2::Angle2Alpha(alp);
-#else
          alp = o2::math_utils::detail::angle2Alpha<double>(alp);
-#endif
        }
-#ifdef YO2_LOCAL_CONSTANTS
-       YO2::SinCos(alp, sn, cs);
-#else
        o2::math_utils::detail::sincos(alp, sn, cs);
-#endif
      }
 
      // protection:  avoid alpha being too close to 0 or +-pi/2
-#ifdef YO2_LOCAL_CONSTANTS
-     if (YO2::Abs(sn) < 2 * kSafe) {
-#else
      if (o2::math_utils::detail::abs<double>(sn) < 2 * kSafe) {
-#endif
        if (alp > 0) {
-#ifdef YO2_LOCAL_CONSTANTS
-         alp += alp < YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
-#else
          alp += alp < o2::constants::math::PIHalf ? 2 * kSafe : -2 * kSafe;
-#endif
        } else {
-#ifdef YO2_LOCAL_CONSTANTS
-         alp += alp > -YO2::kPIHalf ? -2 * kSafe : 2 * kSafe;
-#else
          alp += alp > -o2::constants::math::PIHalf ? -2 * kSafe : 2 * kSafe;
-#endif
        }
-#ifdef YO2_LOCAL_CONSTANTS
-       YO2::SinCos(alp, sn, cs);
-#else
        o2::math_utils::detail::sincos(alp, sn, cs);
-#endif
-#ifdef YO2_LOCAL_CONSTANTS
-     } else if (YO2::Abs(cs) < 2 * kSafe) {
-#else
      } else if (o2::math_utils::detail::abs<double>(cs) < 2 * kSafe) {
-#endif
        if (alp > 0) {
-#ifdef YO2_LOCAL_CONSTANTS
-         alp += alp > YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
-#else
          alp += alp > o2::constants::math::PIHalf ? 2 * kSafe : -2 * kSafe;
-#endif
        } else {
-#ifdef YO2_LOCAL_CONSTANTS
-         alp += alp > -YO2::kPIHalf ? 2 * kSafe : -2 * kSafe;
-#else
          alp += alp > -o2::constants::math::PIHalf ? 2 * kSafe : -2 * kSafe;
-#endif
        }
-#ifdef YO2_LOCAL_CONSTANTS
-       YO2::SinCos(alp, sn, cs);
-#else
        o2::math_utils::detail::sincos(alp, sn, cs);
-#endif
      }
      // get the vertex of origin and the momentum
-#ifdef YO2_LOCAL_CONSTANTS
-     std::array<double, 3> ver{xyz[0], xyz[1], xyz[2]};
-#else
      o2::gpu::gpustd::array<double, 3> ver{xyz[0], xyz[1], xyz[2]};
-#endif
-#ifdef YO2_LOCAL_CONSTANTS
-     std::array<double, 3> mom{pxpypz[0], pxpypz[1], pxpypz[2]};
-#else
      o2::gpu::gpustd::array<double, 3> mom{pxpypz[0], pxpypz[1], pxpypz[2]};
-#endif
      //
      // Rotate to the local coordinate system
-#ifdef YO2_LOCAL_CONSTANTS
-     YO2::RotateZ(ver, -alp);
-#else
      o2::math_utils::detail::rotateZ<double>(ver, -alp);
-#endif
-#ifdef YO2_LOCAL_CONSTANTS
-     YO2::RotateZ(mom, -alp);
-#else
      o2::math_utils::detail::rotateZ<double>(mom, -alp);
-#endif
      //
      double ptI = 1.f / sqrt(mom[0] * mom[0] + mom[1] * mom[1]);
      
@@ -279,68 +199,18 @@ struct YImpactParameter {
      yP[1] = ver[2];
      yP[2] = mom[1] * ptI;
      yP[3] = mom[2] * ptI;
-#ifdef YO2_LOCAL_CONSTANTS
-     yAbsCharge = YO2::Abs(charge);
-#else
      yAbsCharge = o2::math_utils::detail::abs<double>(charge);
-#endif
      yP[4] = charge ? ptI * charge : ptI;
      //mPID = pid;
      //
-#ifdef YO2_LOCAL_CONSTANTS
-     if (YO2::Abs(1 - yP[2]) < kSafe) {
-#else
      if (o2::math_utils::detail::abs<double>(1 - yP[2]) < kSafe) {
-#endif
        yP[2] = 1.f - kSafe; // Protection
-#ifdef YO2_LOCAL_CONSTANTS
-     } else if (YO2::Abs(-1 - yP[2]) < kSafe) {
-#else
      } else if (o2::math_utils::detail::abs<double>(-1 - yP[2]) < kSafe) {
-#endif
        yP[2] = -1.f + kSafe; // Protection
      }
      //
    };
    
-#ifdef YO2_LOCAL_CONSTANTS
-   // Same function, every intermediate in double and the curvature constant taken
-   // from YO2Compat.h. The original below computes f1, r1, xt, yt, sn, cs, a, rp4,
-   // rr, f2, r2 and the returned ip[2] in single precision, which quantises the
-   // impact parameter at ~1.2e-07 relative right where it is compared against
-   // RANGE_IMPACTPARAMS_R and RANGE_IMPACTPARAMS_Z.
-   void getImpactParams(double x, double y, double z, double bz) {
-      //------------------------------------------------------------------
-      // This function calculates the transverse and longitudinal impact parameters
-      // with respect to a point with global coordinates (x,y,0)
-      // in the magnetic field "bz" (kG)
-      //------------------------------------------------------------------
-      double f1 = yP[2], r1 = TMath::Sqrt((1. - f1) * (1. + f1));
-      double xt = yX, yt = yP[0];
-      double sn = TMath::Sin(yAlpha), cs = TMath::Cos(yAlpha);
-      double a = x * cs + y * sn;
-      y = -x * sn + y * cs;
-      x = a;
-      xt -= x;
-      yt -= y;
-
-      double rp4 = yP[4] * bz * YO2::kB2C;//getCurvature(bz);
-      double Almost0 = 1e-12;
-      if ((TMath::Abs(bz) < Almost0) || (TMath::Abs(rp4) < Almost0)) {
-        ip[0] = -(xt * f1 - yt * r1);
-        ip[1] = yP[1] + (ip[0] * f1 - xt) / r1 * yP[3] - z;
-        return;
-      }
-
-      sn = rp4 * xt - f1;
-      cs = rp4 * yt + r1;
-      a = 2 * (xt * f1 - yt * r1) - rp4 * (xt * xt + yt * yt);
-      double rr = TMath::Sqrt(sn * sn + cs * cs);
-      ip[0] = -a / (1 + rr);
-      double f2 = -sn / rr, r2 = TMath::Sqrt((1. - f2) * (1. + f2));
-      ip[1] = yP[1] + yP[3] / rp4 * TMath::ASin(f2 * r1 - f1 * r2) - z;
-    };
-#else
    void getImpactParams(float x, float y, float z, float bz) {
       //------------------------------------------------------------------
       // This function calculates the transverse and longitudinal impact parameters
@@ -372,7 +242,6 @@ struct YImpactParameter {
       float f2 = -sn / rr, r2 = TMath::Sqrt((1. - f2) * (1. + f2));
       ip[1] = yP[1] + yP[3] / rp4 * TMath::ASin(f2 * r1 - f1 * r2) - z;
     };   
-#endif   
    
 };
 

@@ -350,8 +350,9 @@ footer.page a { color: var(--accent); }
     </p>
   </div>
   <p>
-    <code>o2</code> is the default and the reference; <code>o2-local</code> keeps O2's geometry but takes the constants and the impact parameter from <code>YO2Compat.h</code> in double, so the pair isolates what single precision costs. <code>cache</code> exists for
-    machines where O<sup>2</sup> cannot be installed. <code>doctor</code> checks what the
+    <code>o2</code> is the default and the reference; <code>cache</code> exists for
+    machines where O<sup>2</sup> cannot be installed, and reproduces it from constants
+    transcribed into <code>YO2Compat.h</code> rather than replacing them. <code>doctor</code> checks what the
     selected mode actually needs: <code>O2_ROOT</code> for <code>o2</code>, the cache file
     for <code>cache</code>.
   </p>
