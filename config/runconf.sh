@@ -270,12 +270,22 @@ rc_validate() {
   [ "$FIRST_STEP" -ge 1 ] || { echo "  FIRST_STEP must be at least 1; at step 0 LoadUpdateSensorList gets an empty name" >&2; bad=1; }
   [ "$N_STEPS" -ge 1 ]    || { echo "  N_STEPS must be at least 1" >&2; bad=1; }
 
+  # o2       O2 geometry + O2's own constants + the original single-precision
+  #          impact parameter. Reproduces the original module exactly.
+  # o2-local O2 geometry, but the constants and the impact parameter from
+  #          YO2Compat.h, in double. Differs from o2 in precision only.
+  # cache    no O2 at all: cache geometry, same local constants, double.
   case "$GEOM_BACKEND" in
-    o2) ;;
+    o2|o2-local) ;;
     cache)
       [ "$RC_CACHE_CAPABLE" -eq 1 ] || {
         echo "  GEOM_BACKEND is cache, but $RC_MODULE has no cache backend; use o2" >&2; bad=1; } ;;
-    *) echo "  GEOM_BACKEND must be o2 or cache, got '$GEOM_BACKEND'" >&2; bad=1 ;;
+    *) echo "  GEOM_BACKEND must be o2, o2-local or cache, got '$GEOM_BACKEND'" >&2; bad=1 ;;
+  esac
+  case "$GEOM_BACKEND" in
+    o2-local)
+      grep -q YO2_LOCAL_CONSTANTS "$RC_MODULE/Ymlp/inc/YO2Compat.h" 2>/dev/null || {
+        echo "  GEOM_BACKEND is o2-local, but $RC_MODULE has no local-constant mode" >&2; bad=1; } ;;
   esac
 
   case "$JOB_FITMODEL" in
@@ -433,7 +443,8 @@ rc_patch_geom() {   # file
     drop == 1  { drop = 0; next }
     { print }
     /^#define ROOT_YDetectorGeometry$/ && !done {
-      if (want == "o2") { print mark; print "#define YGEOM_USE_O2 1" }
+      if (want == "o2" || want == "o2-local") { print mark; print "#define YGEOM_USE_O2 1" }
+      if (want == "o2-local" || want == "cache") { if (want == "cache") print mark; print "#define YO2_LOCAL_CONSTANTS 1" }
       done = 1
     }
   ' "$f" > "$tmp" && cat "$tmp" > "$f"
@@ -521,7 +532,10 @@ rc_doctor() {
     _rc_drift "VERTEX_DERIVATIVES"  "$JOB_VERTEX_DERIVATIVES"  "$RC_MOD_VERTEX_DERIVATIVES"
   fi
 
-  if [ "$GEOM_BACKEND" = o2 ]; then
+  if [ "$GEOM_BACKEND" = o2-local ]; then
+    _rc_warn "backend o2-local -- O2 geometry with the constants and impact parameter from YO2Compat.h, in double; results differ from the original module by design"
+  fi
+  if [ "$GEOM_BACKEND" = o2 ] || [ "$GEOM_BACKEND" = o2-local ]; then
     # alienv exports O2_ROOT. Without it the job compiles against headers that are
     # not there, twenty minutes after launch rather than now.
     if [ -n "${O2_ROOT:-}" ]; then
@@ -529,7 +543,7 @@ rc_doctor() {
     elif command -v alienv >/dev/null 2>&1; then
       _rc_warn "backend o2 -- alienv is present but O2 is not loaded in this shell; run: eval \`alienv load -w \$O2_DIR/sw O2/latest\`"
     else
-      _rc_bad "backend o2 -- no O2 in this environment (O2_ROOT unset, no alienv). Load O2, or set GEOM_BACKEND=cache"
+      _rc_bad "backend $GEOM_BACKEND -- no O2 in this environment (O2_ROOT unset, no alienv). Load O2, or set GEOM_BACKEND=cache"
     fi
   else
     _rc_ok "backend cache -- no O2 needed at run time"
@@ -772,7 +786,10 @@ rc_compose() {
   _m "run_train_circle.C  method=$JOB_LEARNING_METHOD tree=$DATA_TREE"
 
   rc_patch_geom "$RC_JOB_DIR/$RC_GEOMHDR"
-  if [ "$GEOM_BACKEND" = o2 ]; then
+  if [ "$GEOM_BACKEND" = o2-local ]; then
+    _rc_warn "backend o2-local -- O2 geometry with the constants and impact parameter from YO2Compat.h, in double; results differ from the original module by design"
+  fi
+  if [ "$GEOM_BACKEND" = o2 ] || [ "$GEOM_BACKEND" = o2-local ]; then
     _m "YDetectorGeometry.h  backend=o2 (YGEOM_USE_O2 defined; O2 must be loaded to run)"
   else
     _m "YDetectorGeometry.h  backend=cache (no O2 needed; reads geometry/its2_geom.root)"

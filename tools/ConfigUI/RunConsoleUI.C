@@ -369,7 +369,7 @@ void AlignRunConsoleUI::BuildModule(TGCompositeFrame *tab)
    fModuleDir = MakeRow(tab, "Module checkout", "OnBrowseModule()");
    fFirstStep = AddInt(tab, "First step", 1, 100000);
    fNSteps    = AddInt(tab, "Number of steps", 1, 1000);
-   fGeomBackend = AddCombo(tab, "Geometry backend", "o2 cache");
+   fGeomBackend = AddCombo(tab, "Geometry backend", "o2 o2-local cache");
 
    fStepInfo   = new TGLabel(tab, "");
    tab->AddFrame(fStepInfo, new TGLayoutHints(kLHintsLeft, 168, 4, 14, 2));

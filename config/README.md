@@ -64,17 +64,33 @@ do, you can do over ssh with no display.
 
 ## Geometry backend
 
-`GEOM_BACKEND` picks how the job reads the detector geometry:
+`GEOM_BACKEND` picks two things at once: where the geometry comes from, and where the
+math constants and the impact-parameter arithmetic come from.
 
-- **`o2`** (default) — through `o2::its::GeometryTGeo`, as the module always has. O2 must
-  be loaded before the run; `doctor` checks `O2_ROOT` and says so if it is not.
-- **`cache`** — from a per-chip file built once by `tools/export_geometry_cache.C`. No O2
-  at run time. For machines where O2 cannot be installed.
+- **`o2`** (default, the reference) — geometry through `o2::its::GeometryTGeo`, O2's own
+  constants, and the original single-precision `getImpactParams`. Every source under
+  `Ymlp/` preprocesses to the `original-negB` tag byte for byte in this mode. O2 must be
+  loaded; `doctor` checks `O2_ROOT`.
+- **`o2-local`** — the same O2 geometry, but the constants from `Ymlp/inc/YO2Compat.h`
+  and the impact parameter computed in double. Differs from `o2` in the constants and
+  the precision **only**, with the geometry held fixed, so the pair isolates exactly what
+  the single-precision path costs. Results differ from the original module by design.
+- **`cache`** — no O2 at all: geometry from a per-chip file built once by
+  `tools/export_geometry_cache.C`, same local constants, same double arithmetic. For
+  machines where O2 cannot be installed.
 
-It is a compile guard (`YGEOM_USE_O2`) written into the job's own copy of
-`Ymlp/inc/YDetectorGeometry.h` at compose time, so the two modes are one tree built two
-ways and the module checkout is still only ever read. Composing again switches cleanly
-in either direction.
+Why `o2-local` exists: `getImpactParams` takes `float` arguments, computes every
+intermediate in `float` and returns `float ip[2]`, and those drive the hard cuts
+`|ip_r| > RANGE_IMPACTPARAMS_R` and `|ip_z| > RANGE_IMPACTPARAMS_Z`. Single precision
+quantises the result at ~1.2e-07 relative right at a threshold, so an arbitrarily small
+upstream difference can move a track across a cut; with `QUALITY_VERTEXING` and
+`Num_Of_Bad_Tracks > 2` above it, a whole event can drop. `o2-local` widens that path so
+the amplifier can be measured — and switched off — without changing anything else.
+
+Two compile guards carry it, written into the job's own copy of
+`Ymlp/inc/YDetectorGeometry.h` at compose time: `YGEOM_USE_O2` for the geometry and
+`YO2_LOCAL_CONSTANTS` for the constants and the precision. The module checkout is still
+only ever read, and composing again switches cleanly between all three.
 
 The cache freezes its alignment at export time and never re-reads `ALIGN_FILE`, so a
 cache built from a different alignment than the job is configured with gives a different
@@ -85,8 +101,9 @@ the cache whenever the alignment changes.
 To compare the two, run one configuration under each and diff the outputs:
 
 ```sh
-./config/runctl.sh set GEOM_BACKEND=o2    JOB_TAG=cmp-o2    && ./config/runctl.sh compose && ./config/runctl.sh run
-./config/runctl.sh set GEOM_BACKEND=cache JOB_TAG=cmp-cache && ./config/runctl.sh compose && ./config/runctl.sh run
+./config/runctl.sh set GEOM_BACKEND=o2       JOB_TAG=cmp-o2       && ./config/runctl.sh compose && ./config/runctl.sh run
+./config/runctl.sh set GEOM_BACKEND=o2-local JOB_TAG=cmp-o2-local && ./config/runctl.sh compose && ./config/runctl.sh run
+./config/runctl.sh set GEOM_BACKEND=cache    JOB_TAG=cmp-cache    && ./config/runctl.sh compose && ./config/runctl.sh run
 ```
 
 ## Steps
