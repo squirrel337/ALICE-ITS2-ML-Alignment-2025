@@ -439,12 +439,18 @@ rc_patch_geom() {   # file
   [ -f "$f" ] || return 0
   tmp=$(mktemp "${TMPDIR:-/tmp}/runconf.XXXXXX") || return 1
   awk -v want="$GEOM_BACKEND" -v mark="$RC_GEOM_MARK" '
+    # Drop the whole block a previous compose left: the marker and every backend
+    # define that follows it, however many there are. Removing a fixed number of
+    # lines is what let YO2_LOCAL_CONSTANTS accumulate and, worse, survive a switch
+    # back to o2 -- which silently turned the reference mode into o2-local.
     $0 == mark { drop = 1; next }
-    drop == 1  { drop = 0; next }
+    drop == 1 && /^#define (YGEOM_USE_O2|YO2_LOCAL_CONSTANTS) 1$/ { next }
+    drop == 1 { drop = 0 }
     { print }
     /^#define ROOT_YDetectorGeometry$/ && !done {
-      if (want == "o2" || want == "o2-local") { print mark; print "#define YGEOM_USE_O2 1" }
-      if (want == "o2-local" || want == "cache") { if (want == "cache") print mark; print "#define YO2_LOCAL_CONSTANTS 1" }
+      print mark
+      if (want == "o2" || want == "o2-local")   print "#define YGEOM_USE_O2 1"
+      if (want == "o2-local" || want == "cache") print "#define YO2_LOCAL_CONSTANTS 1"
       done = 1
     }
   ' "$f" > "$tmp" && cat "$tmp" > "$f"
