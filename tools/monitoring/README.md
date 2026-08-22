@@ -87,7 +87,9 @@ Three things that are easy to get wrong:
 - **The seed directory must survive.** `run_train_circle.C` reads `SetPrevUSL`, `SetPrevWeight`
   and `SetPrevWeightDU` from `MLPTrain_Step<FIRST_STEP-1>`. `run_to_run.sh` clears only
   `MLPTrain/` and the output steps at or above `FIRST_STEP`, and refuses to start if the seed
-  is missing.
+  is missing. A run without it is worse than a failed one: it prints `EPOCH-1` as `-nan` and
+  `EPOCH0` as `0`, finishes in a third of the time, and still writes a weight file, so it
+  passes every check that only asks whether output appeared.
 
 ## Plots
 

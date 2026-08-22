@@ -8,11 +8,10 @@ that repetition's weights_Epoch_At_0.txt, loads every one of them, and measures
 how far the 24120 x 17 sensor parameters move between repetitions of the *same*
 configuration.
 
-Why the weights and not the cost: under MONITORONLYUPDATES_MODE==1 the cost
-monitor is not fed -- that branch skips the GetCost warm-up mode 0 does at
-YMultiLayerPerceptron.cxx:1190 -- so EPOCH-1 prints -nan and EPOCH0 prints 0 in
-every run. The parameter set is what the job actually produces, and it is what a
-comparison between two versions of the module is about.
+Why the weights and not the cost: the cost is one scalar summary, while the
+alignment *is* the parameter set, so a comparison between two versions of the
+module is a comparison of these numbers. Use plot_run_to_run.py alongside this if
+the cost is wanted too -- both are recorded in costs.tsv.
 
 Three numbers come out, in increasing order of usefulness:
 

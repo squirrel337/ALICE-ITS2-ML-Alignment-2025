@@ -89,10 +89,11 @@ wait
 # builds the network, prints nothing, and exits. nEPOCH=1 runs epoch 0 and writes
 # weights_Epoch_At_0.txt, which is the parameter set to compare.
 #
-# The cost is recorded when it is there but is not the success criterion, because
-# under MONITORONLYUPDATES_MODE==1 the cost monitor is not fed: that branch skips
-# the GetCost warm-up mode 0 does at YMultiLayerPerceptron.cxx:1190, so EPOCH-1
-# prints -nan and EPOCH0 prints 0 in every run. A run is good if it wrote weights.
+# Both the cost and the weights are usable, and both depend on the seed being
+# there. A run whose MLPTrain_Step<FIRST_STEP-1> is missing prints EPOCH-1 as -nan
+# and EPOCH0 as 0 and still writes a weight file, so keying success on the cost
+# alone accepts a corrupted run as a measurement. The weight file is the criterion
+# because it is what the job exists to produce; the cost is recorded alongside it.
 : > "$WORK/costs.tsv"
 for i in $(seq 1 "$N"); do
   line=$(grep -m1 -oE 'COSTMONITOR\[TRAINING\] EPOCH0 Fit \+ CHSYM = [0-9.eE+-]+ \+ [0-9.eE+-]+' \
