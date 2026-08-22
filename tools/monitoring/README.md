@@ -37,6 +37,42 @@ repository from its own location, so it works from anywhere. Plot directories ar
 | `compare_track_fits.C` | cluster-only vs vertex-constrained fit, side by side |
 | `compare_dca_reference.C` | DCA measured against `v_est` vs against `v_reco` (diagnostic) |
 | `quicklook.C` | first-pass cost / DCA / vertex / residual glance |
+| `check_determinism.sh` | runs one composed job twice and shows where the two logs first differ |
+| `run_to_run.sh` | runs one composed job N times from N pristine copies → `costs.tsv` |
+| `plot_run_to_run.py` | turns one or two `costs.tsv` into statistics and a figure |
+| `compare_weight_files.py` | two weight files, per column / per layer / per sensor |
+
+## Measuring run-to-run spread
+
+The module is not bit-reproducible: two byte-identical job trees, same machine, same
+binary, give different numbers. Any comparison between two versions of the module has
+to clear that band first, so the band has to be measured.
+
+    ./config/runctl.sh set GEOM_BACKEND=cache JOB_TAG=rt-cache JOB_NDATA=4000 JOB_NEPOCH=1
+    ./config/runctl.sh compose
+    ./tools/monitoring/run_to_run.sh runs/rt-cache cache 30 2
+
+    # on a machine with O2 loaded, the same thing with the other backend
+    ./config/runctl.sh set GEOM_BACKEND=o2 JOB_TAG=rt-o2 JOB_NDATA=4000 JOB_NEPOCH=1
+    ./config/runctl.sh compose
+    ./tools/monitoring/run_to_run.sh runs/rt-o2 o2 30 2
+
+    ./tools/monitoring/plot_run_to_run.py spread.png \
+        o2=runs/rt-o2.rtr-o2/costs.tsv cache=runs/rt-cache.rtr-cache/costs.tsv
+
+Three things that are easy to get wrong:
+
+- **`nEPOCH` must be at least 1.** The epoch loop is `for (iepoch = 0; iepoch < nEpoch; ...)`
+  at `YMultiLayerPerceptron.cxx:1748`, so `nEPOCH=0` never enters it — the job builds the
+  network, prints no cost, writes no weights and exits. `nEPOCH=1` runs epoch 0 and writes
+  `weights_Epoch_At_0.txt`, which is the parameter set to compare.
+- **Every repetition needs its own copy.** A run consumes its directory: `run_train_circle.C`
+  moves `UpdateSensorsList.txt` and `TrendingNetwork/` into `MLPTrain/`. Re-running in place
+  is a different experiment. `run_to_run.sh` handles this; a hand-rolled loop usually does not.
+- **Two runs in parallel, not four.** One run JIT-compiles the whole module through cling and
+  peaks near 4.6 GB resident. Overcommitting gets a run OOM-killed silently — the log stops
+  after the network is built and no cost line is ever printed. `run_to_run.sh` marks those
+  `nocost` so a lost repetition is visible rather than quietly reducing n.
 
 ## Plots
 
