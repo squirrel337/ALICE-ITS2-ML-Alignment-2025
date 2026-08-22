@@ -464,8 +464,12 @@ rc_patch_driver() {
 # --- environment checks ---------------------------------------------------
 
 _rc_ok()   { printf '  \033[32mok\033[0m    %s\n' "$1"; }
-_rc_warn() { printf '  \033[33mwarn\033[0m  %s\n' "$1"; RC_DOCTOR_WARN=$((RC_DOCTOR_WARN+1)); }
-_rc_bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; RC_DOCTOR_FAIL=$((RC_DOCTOR_FAIL+1)); }
+# The counters are initialised in rc_doctor. Defaulting them here means calling
+# one of these from anywhere else prints its line instead of aborting the whole
+# run under set -u -- which is what a stray _rc_warn in rc_compose once did,
+# killing compose between patching the geometry header and writing run_steps.sh.
+_rc_warn() { printf '  \033[33mwarn\033[0m  %s\n' "$1"; RC_DOCTOR_WARN=$(( ${RC_DOCTOR_WARN:-0} + 1 )); }
+_rc_bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; RC_DOCTOR_FAIL=$(( ${RC_DOCTOR_FAIL:-0} + 1 )); }
 
 # Entries in one tree of a ROOT file, via ROOT itself. This is what replaces
 # the uproot dependency the Python console carried: on the target machine
@@ -786,14 +790,17 @@ rc_compose() {
   _m "run_train_circle.C  method=$JOB_LEARNING_METHOD tree=$DATA_TREE"
 
   rc_patch_geom "$RC_JOB_DIR/$RC_GEOMHDR"
-  if [ "$GEOM_BACKEND" = o2-local ]; then
-    _rc_warn "backend o2-local -- O2 geometry with the constants and impact parameter from YO2Compat.h, in double; results differ from the original module by design"
-  fi
-  if [ "$GEOM_BACKEND" = o2 ] || [ "$GEOM_BACKEND" = o2-local ]; then
-    _m "YDetectorGeometry.h  backend=o2 (YGEOM_USE_O2 defined; O2 must be loaded to run)"
-  else
-    _m "YDetectorGeometry.h  backend=cache (no O2 needed; reads geometry/its2_geom.root)"
-  fi
+  case "$GEOM_BACKEND" in
+    o2)
+      _m "YDetectorGeometry.h  backend=o2 (YGEOM_USE_O2; O2 must be loaded to run)"
+      _m "                     O2's own constants, original single-precision impact parameter" ;;
+    o2-local)
+      _m "YDetectorGeometry.h  backend=o2-local (YGEOM_USE_O2 + YO2_LOCAL_CONSTANTS; O2 must be loaded)"
+      _m "                     constants and impact parameter from YO2Compat.h, in double --" 
+      _m "                     differs from the original module by design" ;;
+    *)
+      _m "YDetectorGeometry.h  backend=cache (YO2_LOCAL_CONSTANTS; no O2 needed, reads geometry/its2_geom.root)" ;;
+  esac
 
   rc_gen_runner
   _m "run_steps.sh  steps $FIRST_STEP..$RC_LAST_STEP ($N_STEPS)"
