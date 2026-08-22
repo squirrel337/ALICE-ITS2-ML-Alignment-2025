@@ -37,7 +37,43 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import stats
 
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+from _plotfont import setup_font, log_ticks
+
 NPAR = 17
+
+
+def _labels():
+    """Korean titles where a Korean font exists, English where it does not.
+
+    matplotlib does not fall back per glyph: with no Hangul in the active font
+    every Korean character renders as an empty box and the figure ships broken.
+    So the label set is chosen from what is actually installed rather than
+    assumed, and the tool stays portable to machines without a Korean font.
+    """
+    if setup_font():
+        return dict(
+            scatter="run별 파라미터 RMS (epoch 0)",
+            dev="arm 평균 대비 편차  [ppm]",
+            rep="반복 회차",
+            hist="파라미터별 흔들림 크기",
+            histx=r"$\log_{10}$ (반복 간 파라미터 표준편차)",
+            histy="파라미터 수",
+            col="컬럼별 run-to-run 폭",
+            colx="네트워크 파라미터 컬럼",
+            coly="반복 간 표준편차의 중앙값",
+        )
+    return dict(
+        scatter="Per-run parameter RMS (epoch 0)",
+        dev="deviation from arm mean  [ppm]",
+        rep="repetition",
+        hist="Per-parameter instability",
+        histx=r"$\log_{10}$ (parameter sd across repetitions)",
+        histy="parameters",
+        col="Run-to-run width by column",
+        colx="network parameter column",
+        coly="median sd across repetitions",
+    )
 
 
 def load_one(path):
@@ -159,6 +195,7 @@ def main():
     print("=" * 78)
 
     # ---------------------------------------------------------------- plot
+    L = _labels()
     colors = ["#2b6cb0", "#c05621", "#2f855a"]
     fig, ax = plt.subplots(1, 3, figsize=(16.5, 4.8))
 
@@ -169,9 +206,9 @@ def main():
                    alpha=.85, label=f"{label} (n={len(s)})")
         ax[0].axhspan(-d.std(ddof=1), d.std(ddof=1), color=colors[i], alpha=.10)
     ax[0].axhline(0, color="#444", lw=.8)
-    ax[0].set_xlabel("repetition")
-    ax[0].set_ylabel("deviation from arm mean  [ppm]")
-    ax[0].set_title("run별 파라미터 RMS (nDATA=4000, epoch 0)")
+    ax[0].set_xlabel(L["rep"])
+    ax[0].set_ylabel(L["dev"])
+    ax[0].set_title(L["scatter"])
     ax[0].legend(frameon=False, fontsize=9)
     ax[0].grid(alpha=.25)
 
@@ -180,9 +217,9 @@ def main():
         s = sd[sd > 0]
         if s.size:
             ax[1].hist(np.log10(s), bins=60, alpha=.55, color=colors[i], label=label)
-    ax[1].set_xlabel(r"$\log_{10}$ (parameter sd across repetitions)")
-    ax[1].set_ylabel("parameters")
-    ax[1].set_title("파라미터별 흔들림 크기")
+    ax[1].set_xlabel(L["histx"])
+    ax[1].set_ylabel(L["histy"])
+    ax[1].set_title(L["hist"])
     ax[1].legend(frameon=False, fontsize=9)
     ax[1].grid(alpha=.25)
 
@@ -194,9 +231,10 @@ def main():
         x = np.arange(a.shape[2]) + i * width - .4 + width / 2
         ax[2].bar(x, med, width=width, color=colors[i], label=label, alpha=.85)
     ax[2].set_yscale("log")
-    ax[2].set_xlabel("network parameter column")
-    ax[2].set_ylabel("median sd across repetitions")
-    ax[2].set_title("컬럼별 run-to-run 폭")
+    log_ticks(ax[2].yaxis)
+    ax[2].set_xlabel(L["colx"])
+    ax[2].set_ylabel(L["coly"])
+    ax[2].set_title(L["col"])
     ax[2].set_xticks(range(arms[0][1].shape[2]))
     ax[2].tick_params(axis="x", labelsize=7)
     ax[2].legend(frameon=False, fontsize=9)

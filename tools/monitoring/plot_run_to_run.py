@@ -7,11 +7,15 @@ Each costs.tsv comes from tools/monitoring/run_to_run.sh and holds one line per
 repetition: index, fit cost, CHSYM, status.
 
 What is being measured: the job is run repeatedly from pristine copies with
-nEPOCH=0, so nothing trains and every repetition evaluates exactly the same
-arithmetic on exactly the same events. Any difference between repetitions is
-non-determinism in the module itself. The quantity plotted is the epoch -1 fit
-cost -- the first number the job computes, a forward pass with every sensor
-weight at zero -- because everything downstream inherits its spread.
+nEPOCH=1, every repetition seeing exactly the same events from the same seed, so
+any difference between repetitions is non-determinism in the module itself. The
+quantity plotted is the epoch 0 training cost.
+
+nEPOCH=0 would measure nothing at all -- the epoch loop at
+YMultiLayerPerceptron.cxx:1748 is "for (iepoch = 0; iepoch < nEpoch; ...)", so at
+zero it is never entered and the job exits without computing anything.
+
+For the parameters themselves rather than this one scalar, use weight_spread.py.
 
 The comparison of interest is the *width* of each distribution, not its centre:
 two backends that compute the same thing should be equally unstable. So the
@@ -25,6 +29,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import stats
+
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+from _plotfont import setup_font
 
 
 def read(path):
@@ -108,6 +115,8 @@ def main():
     print("=" * 74)
 
     # ---------------------------------------------------------------- plot
+    kr = setup_font()
+    T = (lambda k, e: {"scatter":"run별 cost (epoch 0)","dist":"분포","width":"run-to-run 폭 (95% CI)"}[k] if kr else e)
     colors = ["#2b6cb0", "#c05621", "#2f855a"]
     ncol = 3 if len(arms) == 2 else 2
     fig, ax = plt.subplots(1, ncol, figsize=(5.2 * ncol, 4.4))
@@ -124,7 +133,7 @@ def main():
     ax[0].axhline(0, color="#444", lw=.8)
     ax[0].set_xlabel("repetition")
     ax[0].set_ylabel("deviation from arm mean  [ppm]")
-    ax[0].set_title("每 run 값 (nEPOCH=0, epoch -1 cost)")
+    ax[0].set_title(T("scatter","Per-run cost (epoch 0)"))
     ax[0].legend(frameon=False, fontsize=9)
     ax[0].grid(alpha=.25)
 
@@ -136,7 +145,7 @@ def main():
         ax[1].hist(d, bins=bins, alpha=.55, color=colors[i], label=label)
     ax[1].set_xlabel("deviation from arm mean  [ppm]")
     ax[1].set_ylabel("runs")
-    ax[1].set_title("분포")
+    ax[1].set_title(T("dist","Distribution"))
     ax[1].legend(frameon=False, fontsize=9)
     ax[1].grid(alpha=.25)
 
@@ -152,12 +161,16 @@ def main():
         ax[2].set_xticklabels([l for l, _ in arms])
         ax[2].set_xlim(-.6, len(arms) - .4)
         ax[2].set_ylabel("relative sd  [ppm]")
-        ax[2].set_title("run-to-run 폭 (95% CI)")
+        ax[2].set_title(T("width","Run-to-run width (95% CI)"))
         ax[2].grid(alpha=.25, axis="y")
-        ax[2].text(.5, .02, "\n".join(verdict), transform=ax[2].transAxes,
-                   ha="center", va="bottom", fontsize=8, color="#333")
 
     fig.tight_layout()
+    if verdict:
+        # A figure-level caption, not text inside the axes: anchored in the panel
+        # it lands on top of whichever marker sits lowest.
+        fig.subplots_adjust(bottom=.26)
+        fig.text(.5, .04, "   |   ".join(verdict), ha="center", va="bottom",
+                 fontsize=9, color="#333")
     fig.savefig(out, dpi=150)
     print(f"wrote {out}")
 
