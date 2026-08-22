@@ -55,14 +55,17 @@ for i in $(seq 1 "$N"); do
 done
 wait
 
-# The first computed quantity of the job: the epoch 0 training cost, printed as
-# "COSTMONITOR[TRAINING] EPOCH0 Fit + CHSYM = <fit> + <chsym>". Everything
-# downstream inherits its spread.
+# What a repetition is worth is its epoch-0 weight file, not the cost line.
 #
 # nEPOCH must be at least 1. The epoch loop at YMultiLayerPerceptron.cxx:1748 is
 # "for (iepoch = 0; iepoch < nEpoch; ...)", so nEPOCH=0 never enters it: the job
 # builds the network, prints nothing, and exits. nEPOCH=1 runs epoch 0 and writes
-# weights_Epoch_At_0.txt, which is the epoch-0 parameter set to compare.
+# weights_Epoch_At_0.txt, which is the parameter set to compare.
+#
+# The cost is recorded when it is there but is not the success criterion, because
+# under MONITORONLYUPDATES_MODE==1 the cost monitor is not fed: that branch skips
+# the GetCost warm-up mode 0 does at YMultiLayerPerceptron.cxx:1190, so EPOCH-1
+# prints -nan and EPOCH0 prints 0 in every run. A run is good if it wrote weights.
 : > "$WORK/costs.tsv"
 for i in $(seq 1 "$N"); do
   line=$(grep -m1 -oE 'COSTMONITOR\[TRAINING\] EPOCH0 Fit \+ CHSYM = [0-9.eE+-]+ \+ [0-9.eE+-]+' \
@@ -70,11 +73,11 @@ for i in $(seq 1 "$N"); do
   fit=$(echo "$line" | awk '{print $7}')
   chs=$(echo "$line" | awk '{print $9}')
   w=$(ls "$WORK/r$i"/MLPTrain_Step*/weights/weights_Epoch_At_0.txt 2>/dev/null | head -1)
-  st=ok; [ -z "$fit" ] && st=nocost
+  st=ok; [ -z "$w" ] && st=noweights
   printf '%s\t%s\t%s\t%s\t%s\n' "$i" "${fit:-NA}" "${chs:-NA}" "$st" "${w:-NA}" >> "$WORK/costs.tsv"
 done
 
-echo "[$LABEL] summary -> $WORK/costs.tsv"
-awk -F'\t' '$4=="ok"{n++; v[n]=$2; if(n==1||$2<lo)lo=$2; if(n==1||$2>hi)hi=$2}
-  END{ if(n<2){print "  n="n" (not enough runs)"; exit}
-       printf "  n=%d  min=%s  max=%s  range=%.3e  relative=%.3e\n", n, lo, hi, hi-lo, (hi-lo)/lo }' "$WORK/costs.tsv"
+ok=$(awk -F'\t' '$4=="ok"' "$WORK/costs.tsv" | wc -l)
+echo "[$LABEL] $ok/$N repetitions produced epoch-0 weights -> $WORK/costs.tsv"
+[ "$ok" -lt "$N" ] && awk -F'\t' '$4!="ok"{print "  r"$1" produced no weights"}' "$WORK/costs.tsv"
+echo "[$LABEL] analyse with: tools/monitoring/weight_spread.py out.png $LABEL=$WORK/costs.tsv"

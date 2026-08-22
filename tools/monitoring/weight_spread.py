@@ -1,36 +1,50 @@
 #!/usr/bin/env python3
-"""Per-parameter run-to-run spread of the epoch-0 weights.
+"""Run-to-run spread of the epoch-0 weights, for one or two backends.
 
     weight_spread.py OUT.png LABEL=costs.tsv [LABEL=costs.tsv ...]
 
 Takes the costs.tsv written by run_to_run.sh, whose fifth column is the path to
 that repetition's weights_Epoch_At_0.txt, loads every one of them, and measures
-how much each of the 24120 x 17 sensor parameters moves between repetitions of
-the *same* configuration.
+how far the 24120 x 17 sensor parameters move between repetitions of the *same*
+configuration.
 
-This is the quantity that matters: the cost is one scalar summary, but the
-alignment is the parameter set, and a comparison between two versions of the
-module is only meaningful outside the band that repeating one version already
-produces. Spread is reported per network-parameter column, since the columns are
-on wildly different scales and a single pooled number hides which ones move.
+Why the weights and not the cost: under MONITORONLYUPDATES_MODE==1 the cost
+monitor is not fed -- that branch skips the GetCost warm-up mode 0 does at
+YMultiLayerPerceptron.cxx:1190 -- so EPOCH-1 prints -nan and EPOCH0 prints 0 in
+every run. The parameter set is what the job actually produces, and it is what a
+comparison between two versions of the module is about.
+
+Three numbers come out, in increasing order of usefulness:
+
+  scalar    one RMS per run over all parameters. Cheap to plot, and its spread
+            is the run-to-run band as a single figure.
+  pairwise  the RMS difference between two runs of the same configuration,
+            over all pairs. This is the band as it is actually used: "two runs
+            of one version land this far apart".
+  per-parameter  the sd of each parameter across repetitions, kept per column
+            because the columns sit on very different scales.
+
+With two arms the widths are compared, not the centres -- two backends computing
+the same arithmetic should be equally unstable -- so the tests are on the
+variances (F-test, and Brown-Forsythe which assumes no normality), with the mean
+reported separately as a systematic offset.
 """
 import sys
+import math
+import itertools
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scipy import stats
 
 NPAR = 17
-# The eleven network parameters that map to the six rigid-body degrees of
-# freedom, plus the bookkeeping columns the file carries alongside them.
-SKIP_HEADER = "#"
 
 
 def load_one(path):
-    rows = []
-    started = False
+    rows, started = [], False
     for line in open(path):
-        if line.startswith(SKIP_HEADER):
+        if line.startswith("#"):
             started = "synapses weights" in line
             continue
         if not started:
@@ -38,7 +52,7 @@ def load_one(path):
         f = line.split()
         if len(f) == NPAR + 1:
             rows.append([float(v) for v in f[1:]])
-    return np.asarray(rows)
+    return np.asarray(rows, dtype=np.float64)
 
 
 def load_arm(tsv):
@@ -58,8 +72,25 @@ def load_arm(tsv):
     if not mats:
         return None
     shape = mats[0].shape
-    mats = [m for m in mats if m.shape == shape]
-    return np.stack(mats)          # (nrun, nsensor, NPAR)
+    return np.stack([m for m in mats if m.shape == shape])   # (nrun, nsensor, NPAR)
+
+
+def sd_ci(x, conf=.95):
+    n = len(x)
+    if n < 2:
+        return (math.nan, math.nan)
+    s2 = x.var(ddof=1)
+    a = (1 - conf) / 2
+    return (math.sqrt((n - 1) * s2 / stats.chi2.ppf(1 - a, n - 1)),
+            math.sqrt((n - 1) * s2 / stats.chi2.ppf(a, n - 1)))
+
+
+def pairwise_rms(a):
+    """RMS difference between every pair of runs."""
+    n = a.shape[0]
+    flat = a.reshape(n, -1)
+    return np.array([np.sqrt(((flat[i] - flat[j]) ** 2).mean())
+                     for i, j in itertools.combinations(range(n), 2)])
 
 
 def main():
@@ -78,49 +109,83 @@ def main():
     if not arms:
         sys.exit("nothing to analyse")
 
-    print()
+    scalars, pw = {}, {}
     for label, a in arms:
-        sd = a.std(axis=0, ddof=1)          # (nsensor, NPAR)
-        mean = a.mean(axis=0)
-        moved = (sd > 0).sum()
-        tot = sd.size
-        print(f"=== {label} : {a.shape[0]} repetitions of the identical configuration")
-        print(f"    parameters that differ between repetitions : "
-              f"{moved}/{tot}  ({100*moved/tot:.1f}%)")
-        # relative spread where the parameter is not identically zero
-        nz = np.abs(mean) > 0
-        rel = np.zeros_like(sd)
-        rel[nz] = sd[nz] / np.abs(mean[nz])
-        print(f"    absolute sd : median {np.median(sd[sd>0]) if moved else 0:.3e}   "
-              f"p95 {np.percentile(sd[sd>0], 95) if moved else 0:.3e}   "
-              f"max {sd.max():.3e}")
-        print(f"    relative sd : median {np.median(rel[rel>0]) if (rel>0).any() else 0:.3e}   "
-              f"p95 {np.percentile(rel[rel>0], 95) if (rel>0).any() else 0:.3e}")
-        print("    per column (sd across repetitions, median over sensors):")
-        for c in range(a.shape[2]):
-            s = sd[:, c]
-            if (s > 0).any():
-                print(f"      col {c:2d}  median {np.median(s[s>0]):.3e}  max {s.max():.3e}  "
-                      f"({100*(s>0).mean():.0f}% of sensors move)")
-            else:
-                print(f"      col {c:2d}  identical in every repetition")
-        print()
+        scalars[label] = np.sqrt((a.reshape(a.shape[0], -1) ** 2).mean(axis=1))
+        pw[label] = pairwise_rms(a)
+
+    print("\n" + "=" * 78)
+    print("RUN-TO-RUN SPREAD  (identical configuration, repeated)")
+    print("=" * 78)
+    for label, a in arms:
+        s = scalars[label]
+        lo, hi = sd_ci(s)
+        print(f"\n--- {label}  n={a.shape[0]}")
+        print(f"  per-run scalar (RMS over all parameters)")
+        print(f"    mean {s.mean():.6e}   sd {s.std(ddof=1):.3e}   "
+              f"relative sd {s.std(ddof=1)/s.mean():.3e}")
+        print(f"    range {s.max()-s.min():.3e}   relative range "
+              f"{(s.max()-s.min())/s.mean():.3e}")
+        print(f"    sd 95% CI [{lo:.3e}, {hi:.3e}]")
+        d = pw[label]
+        print(f"  pairwise RMS difference between two runs  ({len(d)} pairs)")
+        print(f"    median {np.median(d):.3e}   min {d.min():.3e}   max {d.max():.3e}")
+        sd = a.std(axis=0, ddof=1)
+        moved, tot = int((sd > 0).sum()), sd.size
+        print(f"  per parameter")
+        print(f"    differ between repetitions: {moved}/{tot} ({100*moved/tot:.1f}%)")
+        if moved:
+            print(f"    sd  median {np.median(sd[sd>0]):.3e}  "
+                  f"p95 {np.percentile(sd[sd>0],95):.3e}  max {sd.max():.3e}")
+
+    if len(arms) == 2:
+        (la, a), (lb, b) = arms
+        sa, sb = scalars[la], scalars[lb]
+        Fa, Fb = sa.std(ddof=1), sb.std(ddof=1)
+        F = Fa**2 / Fb**2
+        dfa, dfb = len(sa) - 1, len(sb) - 1
+        p_f = 2 * min(stats.f.cdf(F, dfa, dfb), 1 - stats.f.cdf(F, dfa, dfb))
+        _, p_bf = stats.levene(sa, sb, center="median")
+        _, p_t = stats.ttest_ind(sa, sb, equal_var=False)
+        lo = math.sqrt(F / stats.f.ppf(.975, dfa, dfb))
+        hi = math.sqrt(F / stats.f.ppf(.025, dfa, dfb))
+        print("\n" + "-" * 78)
+        print(f"WIDTH   sd({la}) / sd({lb}) = {Fa/Fb:.3f}   95% CI [{lo:.3f}, {hi:.3f}]")
+        print(f"        F-test p = {p_f:.3g}   Brown-Forsythe p = {p_bf:.3g}")
+        print(f"        (CI containing 1 means the two backends are equally unstable)")
+        print(f"CENTRE  mean({la}) - mean({lb}) = {sa.mean()-sb.mean():+.3e}   "
+              f"Welch p = {p_t:.3g}")
+        print(f"CROSS   median pairwise RMS  {la} {np.median(pw[la]):.3e}   "
+              f"{lb} {np.median(pw[lb]):.3e}")
+    print("=" * 78)
 
     # ---------------------------------------------------------------- plot
     colors = ["#2b6cb0", "#c05621", "#2f855a"]
-    fig, ax = plt.subplots(1, 2, figsize=(11.5, 4.6))
+    fig, ax = plt.subplots(1, 3, figsize=(16.5, 4.8))
+
+    for i, (label, a) in enumerate(arms):
+        s = scalars[label]
+        d = (s - s.mean()) / s.mean() * 1e6
+        ax[0].plot(np.arange(1, len(s) + 1), d, "o", ms=5, color=colors[i],
+                   alpha=.85, label=f"{label} (n={len(s)})")
+        ax[0].axhspan(-d.std(ddof=1), d.std(ddof=1), color=colors[i], alpha=.10)
+    ax[0].axhline(0, color="#444", lw=.8)
+    ax[0].set_xlabel("repetition")
+    ax[0].set_ylabel("deviation from arm mean  [ppm]")
+    ax[0].set_title("run별 파라미터 RMS (nDATA=4000, epoch 0)")
+    ax[0].legend(frameon=False, fontsize=9)
+    ax[0].grid(alpha=.25)
 
     for i, (label, a) in enumerate(arms):
         sd = a.std(axis=0, ddof=1)
         s = sd[sd > 0]
         if s.size:
-            ax[0].hist(np.log10(s), bins=60, alpha=.55, color=colors[i],
-                       label=f"{label} (n={a.shape[0]})")
-    ax[0].set_xlabel(r"$\log_{10}$ (per-parameter sd across repetitions)")
-    ax[0].set_ylabel("parameters")
-    ax[0].set_title("같은 설정을 반복했을 때 파라미터가 흔들리는 크기")
-    ax[0].legend(frameon=False, fontsize=9)
-    ax[0].grid(alpha=.25)
+            ax[1].hist(np.log10(s), bins=60, alpha=.55, color=colors[i], label=label)
+    ax[1].set_xlabel(r"$\log_{10}$ (parameter sd across repetitions)")
+    ax[1].set_ylabel("parameters")
+    ax[1].set_title("파라미터별 흔들림 크기")
+    ax[1].legend(frameon=False, fontsize=9)
+    ax[1].grid(alpha=.25)
 
     width = .8 / max(len(arms), 1)
     for i, (label, a) in enumerate(arms):
@@ -128,14 +193,15 @@ def main():
         med = [np.median(sd[:, c][sd[:, c] > 0]) if (sd[:, c] > 0).any() else np.nan
                for c in range(a.shape[2])]
         x = np.arange(a.shape[2]) + i * width - .4 + width / 2
-        ax[1].bar(x, med, width=width, color=colors[i], label=label, alpha=.85)
-    ax[1].set_yscale("log")
-    ax[1].set_xlabel("network parameter column")
-    ax[1].set_ylabel("median sd across repetitions")
-    ax[1].set_title("컬럼별 run-to-run 폭")
-    ax[1].set_xticks(range(arms[0][1].shape[2]))
-    ax[1].legend(frameon=False, fontsize=9)
-    ax[1].grid(alpha=.25, axis="y")
+        ax[2].bar(x, med, width=width, color=colors[i], label=label, alpha=.85)
+    ax[2].set_yscale("log")
+    ax[2].set_xlabel("network parameter column")
+    ax[2].set_ylabel("median sd across repetitions")
+    ax[2].set_title("컬럼별 run-to-run 폭")
+    ax[2].set_xticks(range(arms[0][1].shape[2]))
+    ax[2].tick_params(axis="x", labelsize=7)
+    ax[2].legend(frameon=False, fontsize=9)
+    ax[2].grid(alpha=.25, axis="y")
 
     fig.tight_layout()
     fig.savefig(out, dpi=150)
