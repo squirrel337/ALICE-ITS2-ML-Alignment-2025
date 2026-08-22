@@ -21,20 +21,47 @@ set -u
 SRC=${1:?usage: run_to_run.sh <job-dir> <label> [n] [parallel]}
 LABEL=${2:?usage: run_to_run.sh <job-dir> <label> [n] [parallel]}
 N=${3:-30}
-# One run is a cling JIT of the whole module and peaks near 4.6 GB resident, so
-# parallelism is bounded by memory, not by cores. Overcommitting gets a run
-# OOM-killed silently -- the log simply stops after the network is built and no
-# cost line is ever printed, which costs a whole repetition. Budget ~5 GB each.
-PAR=${4:-2}
+# Parallelism is bounded by memory, not by cores. One run cling-JITs the whole
+# module and then holds the event sample: measured 7.8 GB resident at nDATA=4000,
+# still climbing through the epoch. Two of those do not fit under a 13 GB cgroup.
+#
+# Overcommitting does not fail loudly. The run is OOM-killed at its peak, which is
+# just after the network is built, and the log stops at exactly the line a run with
+# nEPOCH=0 stops at -- no error, no cost, no weights, in about a third of the time.
+# Eight repetitions were lost to this before the cgroup limit was checked
+# (/sys/fs/cgroup/memory/.../memory.limit_in_bytes, and memory.max_usage_in_bytes
+# pinned to it). Check the budget before raising this.
+PAR=${4:-1}
 
 BASE=$(cd "$(dirname "$SRC")" && pwd)/$(basename "$SRC")
 WORK="${BASE}.rtr-${LABEL}"
 
+# The job reads its starting point from MLPTrain_Step<FIRST_STEP-1>: run_train_circle.C
+# calls SetPrevUSL, SetPrevWeight and SetPrevWeightDU on that directory. It must
+# survive into every copy. Only the *output* of a previous run may be cleared --
+# MLPTrain/ (a crashed leftover) and MLPTrain_Step<n> for n >= FIRST_STEP, which
+# line 74 produces by renaming MLPTrain at the end.
+#
+# Deleting the seed does not fail loudly: the job builds the whole network, then
+# stops silently right after "[ITS OB2]" with a 25714-line log, no error, no cost
+# and no weights, in about half the time a real run takes.
+FIRST=$(awk -F= '/^first=/{print $2; exit}' "$BASE/run_steps.sh" 2>/dev/null)
+[ -n "${FIRST:-}" ] || { echo "cannot read first= from $BASE/run_steps.sh" >&2; exit 1; }
+SEED="MLPTrain_Step$((FIRST - 1))"
+[ -d "$BASE/$SEED" ] || {
+  echo "$BASE has no $SEED -- the job has no starting point; recompose with PARAMS_ARCHIVE set" >&2
+  exit 1; }
+
 rm -rf "$WORK"; mkdir -p "$WORK"
-echo "[$LABEL] copying $N pristine job trees into $WORK"
+echo "[$LABEL] copying $N pristine job trees into $WORK  (seed $SEED kept)"
 for i in $(seq 1 "$N"); do
   cp -a "$BASE" "$WORK/r$i"
-  rm -rf "$WORK/r$i/MLPTrain" "$WORK/r$i"/MLPTrain_Step[0-9]*/ 2>/dev/null
+  rm -rf "$WORK/r$i/MLPTrain"
+  for d in "$WORK/r$i"/MLPTrain_Step[0-9]*; do
+    [ -d "$d" ] || continue
+    n=${d##*/MLPTrain_Step}
+    [ "$n" -ge "$FIRST" ] 2>/dev/null && rm -rf "$d"
+  done
 done
 
 one() {   # index

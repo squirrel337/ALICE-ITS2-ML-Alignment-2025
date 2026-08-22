@@ -51,12 +51,12 @@ to clear that band first, so the band has to be measured.
 
     ./config/runctl.sh set GEOM_BACKEND=cache JOB_TAG=rt-cache JOB_NDATA=4000 JOB_NEPOCH=1
     ./config/runctl.sh compose
-    ./tools/monitoring/run_to_run.sh runs/rt-cache cache 30 2
+    ./tools/monitoring/run_to_run.sh runs/rt-cache cache 30 1
 
     # on a machine with O2 loaded, the same thing with the other backend
     ./config/runctl.sh set GEOM_BACKEND=o2 JOB_TAG=rt-o2 JOB_NDATA=4000 JOB_NEPOCH=1
     ./config/runctl.sh compose
-    ./tools/monitoring/run_to_run.sh runs/rt-o2 o2 30 2
+    ./tools/monitoring/run_to_run.sh runs/rt-o2 o2 30 1
 
     ./tools/monitoring/plot_run_to_run.py spread.png \
         o2=runs/rt-o2.rtr-o2/costs.tsv cache=runs/rt-cache.rtr-cache/costs.tsv
@@ -79,10 +79,15 @@ Three things that are easy to get wrong:
 - **Every repetition needs its own copy.** A run consumes its directory: `run_train_circle.C`
   moves `UpdateSensorsList.txt` and `TrendingNetwork/` into `MLPTrain/`. Re-running in place
   is a different experiment. `run_to_run.sh` handles this; a hand-rolled loop usually does not.
-- **Two runs in parallel, not four.** One run JIT-compiles the whole module through cling and
-  peaks near 4.6 GB resident. Overcommitting gets a run OOM-killed silently — the log stops
-  after the network is built and no cost line is ever printed. `run_to_run.sh` marks those
-  `nocost` so a lost repetition is visible rather than quietly reducing n.
+- **One run at a time unless you have checked the memory budget.** A run cling-JITs the whole
+  module and then holds the event sample: 7.8 GB resident at `nDATA=4000`. Two do not fit under
+  a 13 GB cgroup. An OOM-killed run does not announce itself — it stops at exactly the line an
+  `nEPOCH=0` run stops at, with no error, no cost and no weights, in about a third of the time.
+  Check `/sys/fs/cgroup/memory/.../memory.limit_in_bytes` against `ps -o rss` before raising it.
+- **The seed directory must survive.** `run_train_circle.C` reads `SetPrevUSL`, `SetPrevWeight`
+  and `SetPrevWeightDU` from `MLPTrain_Step<FIRST_STEP-1>`. `run_to_run.sh` clears only
+  `MLPTrain/` and the output steps at or above `FIRST_STEP`, and refuses to start if the seed
+  is missing.
 
 ## Plots
 
