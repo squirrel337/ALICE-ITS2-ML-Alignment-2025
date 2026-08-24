@@ -37,6 +37,59 @@ repository from its own location, so it works from anywhere. Plot directories ar
 | `compare_track_fits.C` | cluster-only vs vertex-constrained fit, side by side |
 | `compare_dca_reference.C` | DCA measured against `v_est` vs against `v_reco` (diagnostic) |
 | `quicklook.C` | first-pass cost / DCA / vertex / residual glance |
+| `check_determinism.sh` | runs one composed job twice and shows where the two logs first differ |
+| `run_to_run.sh` | runs one composed job N times from N pristine copies → `costs.tsv` |
+| `plot_run_to_run.py` | turns one or two `costs.tsv` into statistics and a figure |
+| `weight_spread.py` | per-parameter spread of the epoch-0 weights across repetitions |
+| `compare_weight_files.py` | two weight files, per column / per layer / per sensor |
+
+## Measuring run-to-run spread
+
+The module is not bit-reproducible: two byte-identical job trees, same machine, same
+binary, give different numbers. Any comparison between two versions of the module has
+to clear that band first, so the band has to be measured.
+
+    ./config/runctl.sh set GEOM_BACKEND=cache JOB_TAG=rt-cache JOB_NDATA=4000 JOB_NEPOCH=1
+    ./config/runctl.sh compose
+    ./tools/monitoring/run_to_run.sh runs/rt-cache cache 30 1
+
+    # on a machine with O2 loaded, the same thing with the other backend
+    ./config/runctl.sh set GEOM_BACKEND=o2 JOB_TAG=rt-o2 JOB_NDATA=4000 JOB_NEPOCH=1
+    ./config/runctl.sh compose
+    ./tools/monitoring/run_to_run.sh runs/rt-o2 o2 30 1
+
+    ./tools/monitoring/plot_run_to_run.py spread.png \
+        o2=runs/rt-o2.rtr-o2/costs.tsv cache=runs/rt-cache.rtr-cache/costs.tsv
+
+    ./tools/monitoring/weight_spread.py weights.png \
+        o2=runs/rt-o2.rtr-o2/costs.tsv cache=runs/rt-cache.rtr-cache/costs.tsv
+
+`plot_run_to_run.py` compares the cost, one scalar per run. `weight_spread.py` reads
+the `weights_Epoch_At_0.txt` that each repetition wrote — the fifth column of
+`costs.tsv` — and measures how far each of the 24120 x 17 sensor parameters moves
+between repetitions of the same configuration. That band is what any comparison
+between two versions of the module has to beat to mean anything.
+
+Three things that are easy to get wrong:
+
+- **`nEPOCH` must be at least 1.** The epoch loop is `for (iepoch = 0; iepoch < nEpoch; ...)`
+  at `YMultiLayerPerceptron.cxx:1748`, so `nEPOCH=0` never enters it — the job builds the
+  network, prints no cost, writes no weights and exits. `nEPOCH=1` runs epoch 0 and writes
+  `weights_Epoch_At_0.txt`, which is the parameter set to compare.
+- **Every repetition needs its own copy.** A run consumes its directory: `run_train_circle.C`
+  moves `UpdateSensorsList.txt` and `TrendingNetwork/` into `MLPTrain/`. Re-running in place
+  is a different experiment. `run_to_run.sh` handles this; a hand-rolled loop usually does not.
+- **One run at a time unless you have checked the memory budget.** A run cling-JITs the whole
+  module and then holds the event sample: 7.8 GB resident at `nDATA=4000`. Two do not fit under
+  a 13 GB cgroup. An OOM-killed run does not announce itself — it stops at exactly the line an
+  `nEPOCH=0` run stops at, with no error, no cost and no weights, in about a third of the time.
+  Check `/sys/fs/cgroup/memory/.../memory.limit_in_bytes` against `ps -o rss` before raising it.
+- **The seed directory must survive.** `run_train_circle.C` reads `SetPrevUSL`, `SetPrevWeight`
+  and `SetPrevWeightDU` from `MLPTrain_Step<FIRST_STEP-1>`. `run_to_run.sh` clears only
+  `MLPTrain/` and the output steps at or above `FIRST_STEP`, and refuses to start if the seed
+  is missing. A run without it is worse than a failed one: it prints `EPOCH-1` as `-nan` and
+  `EPOCH0` as `0`, finishes in a third of the time, and still writes a weight file, so it
+  passes every check that only asks whether output appeared.
 
 ## Plots
 

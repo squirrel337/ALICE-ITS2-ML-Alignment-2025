@@ -284,16 +284,9 @@ void YAlignment::PrepareData(int nentries=10000, int parallel = 0, bool build = 
       gSystem->mkdir(flosscurve_Directory_name);    
    }
 
-   // Reconstructed primary vertex, taken per track (TrackData::tv*) rather than
-   // per event (EventData::X*). In the present production the two are identical
-   // bit for bit, but tv is the correct source: it is what the reconstruction
-   // associated with this particular track, and a production that assigns tracks
-   // to different vertices would differ here. Feeds BeamPos[] in the cost, which
-   // is the reference for the beta-branch choice in getLineParams and the v_reco
-   // recorded by the residual monitor.
-   TString s_X1 = "tv1";
-   TString s_X2 = "tv2";
-   TString s_X3 = "tv3";
+   TString s_X1 = "X1";		
+   TString s_X2 = "X2";		
+   TString s_X3 = "X3";		
    TString s_P1 = "pt";//"P1";		
    TString s_P2 = "eta";//"P2";		
    TString s_P3 = "charge";//"P3";

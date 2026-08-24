@@ -83,3 +83,7 @@ tools/monitoring/plots/
 tools/monitoring/*.log
 tools/monitoring/report_*.html
 tools/monitoring/cost_epoch.txt
+
+# run console job directories
+/runs/
+__pycache__/
