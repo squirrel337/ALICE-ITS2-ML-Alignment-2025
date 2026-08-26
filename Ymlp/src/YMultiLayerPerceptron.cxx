@@ -3218,14 +3218,19 @@ void YMultiLayerPerceptron::BetaLinearization(double* beta, TVector3* dirXc, std
 {
    double beta_dum[nLAYER+1];
    int dum_index[nLAYER+1];
-   int lin_dum =0; 
-   for(int l = 0; l < nLAYER+1; l++){   
-      dum_index[l] = -1;
-      if(!hitUpdate[l]) continue;   
+   int lin_dum =0;
+   // hitUpdate holds one entry per fit point, and beta/dirXc are sized to match it:
+   // the cost path appends the vertex as an eighth point, TrackerFit does not and
+   // passes nLAYER-sized arrays. Taking the bound from the vector rather than from
+   // nLAYER+1 is what keeps the cluster-only caller inside all three objects.
+   int nPoint = (int)hitUpdate.size() < nLAYER+1 ? (int)hitUpdate.size() : nLAYER+1;
+   for(int l = 0; l < nLAYER+1; l++) dum_index[l] = -1;
+   for(int l = 0; l < nPoint; l++){
+      if(!hitUpdate[l]) continue;
       beta_dum[lin_dum]  = beta[l];
       dum_index[lin_dum] = l;
       lin_dum++;
-   }       
+   }
    lin_dum = lin_dum - 1;
         
    for(int ld = 0; ld < lin_dum; ld++){   
