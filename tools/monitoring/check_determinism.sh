@@ -1,12 +1,15 @@
 #!/bin/bash
 # Run the same job twice from two pristine copies and compare.
 #
-# The module is not bit-reproducible run to run: two byte-identical job trees,
-# same machine, same binary, produce different numbers from the very first
-# computed quantity onward -- the epoch -1 cost, which is a pure forward
-# evaluation with every sensor weight at zero. This script measures the size of
-# that spread so it can be used as the acceptance band when comparing two
-# versions of the module, since bit-identity is not achievable.
+# The module IS bit-reproducible as of 87b8844: two byte-identical job trees on
+# the same machine produce the same numbers. It was not, until an out-of-bounds
+# read in BetaLinearization was fixed -- see run_to_run_results.md. So this
+# script is a regression check, not a measurement of an inherent spread: the two
+# runs should agree exactly, and any divergence it reports is a defect.
+#
+# For the parameters rather than the log, use run_to_run.sh with weight_spread.py,
+# or just compare the weight files:
+#   md5sum <job>.determinism/r*/MLPTrain_Step*/weights/weights_Epoch_At_0.txt
 #
 #   check_determinism.sh <composed-job-dir> [n]
 #

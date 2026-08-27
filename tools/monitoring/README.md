@@ -43,11 +43,14 @@ repository from its own location, so it works from anywhere. Plot directories ar
 | `weight_spread.py` | per-parameter spread of the epoch-0 weights across repetitions |
 | `compare_weight_files.py` | two weight files, per column / per layer / per sensor |
 
-## Measuring run-to-run spread
+## Checking run-to-run reproducibility
 
-The module is not bit-reproducible: two byte-identical job trees, same machine, same
-binary, give different numbers. Any comparison between two versions of the module has
-to clear that band first, so the band has to be measured.
+The module **is** bit-reproducible as of `87b8844`: repeated runs of one configuration
+produce byte-identical `weights_Epoch_At_0.txt`. It was not, until an out-of-bounds read
+in `BetaLinearization` was fixed — see `run_to_run_results.md` for the before/after and
+the mechanism. Run this to confirm reproducibility, or to catch a regression that
+reintroduces run-dependence; any difference between two runs of one configuration is now
+a defect rather than a band to tolerate.
 
     ./config/runctl.sh set GEOM_BACKEND=cache JOB_TAG=rt-cache JOB_NDATA=4000 JOB_NEPOCH=1
     ./config/runctl.sh compose
@@ -67,8 +70,10 @@ to clear that band first, so the band has to be measured.
 `plot_run_to_run.py` compares the cost, one scalar per run. `weight_spread.py` reads
 the `weights_Epoch_At_0.txt` that each repetition wrote — the fifth column of
 `costs.tsv` — and measures how far each of the 24120 x 17 sensor parameters moves
-between repetitions of the same configuration. That band is what any comparison
-between two versions of the module has to beat to mean anything.
+between repetitions of the same configuration. It should report zero. The quickest
+check is the file hashes:
+
+    md5sum runs/rt-cache.rtr-cache/r*/MLPTrain_Step901/weights/weights_Epoch_At_0.txt
 
 Three things that are easy to get wrong:
 

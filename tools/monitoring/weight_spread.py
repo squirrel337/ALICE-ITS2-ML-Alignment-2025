@@ -165,7 +165,12 @@ def main():
         d = pw[label]
         print(f"  pairwise RMS difference between two runs  ({len(d)} pairs)")
         print(f"    median {np.median(d):.3e}   min {d.min():.3e}   max {d.max():.3e}")
+        # Whether a parameter moved is decided by max-min, not by sd. numpy's std
+        # subtracts a mean that is not exactly representable, so identical values
+        # leave a rounding residue -- on one byte-identical set of five runs that
+        # reported 22785 of 410040 parameters as differing, at ~1e-21.
         sd = a.std(axis=0, ddof=1)
+        sd[a.max(axis=0) == a.min(axis=0)] = 0.0
         moved, tot = int((sd > 0).sum()), sd.size
         print(f"  per parameter")
         print(f"    differ between repetitions: {moved}/{tot} ({100*moved/tot:.1f}%)")
@@ -214,6 +219,7 @@ def main():
 
     for i, (label, a) in enumerate(arms):
         sd = a.std(axis=0, ddof=1)
+        sd[a.max(axis=0) == a.min(axis=0)] = 0.0
         s = sd[sd > 0]
         if s.size:
             ax[1].hist(np.log10(s), bins=60, alpha=.55, color=colors[i], label=label)
@@ -226,6 +232,7 @@ def main():
     width = .8 / max(len(arms), 1)
     for i, (label, a) in enumerate(arms):
         sd = a.std(axis=0, ddof=1)
+        sd[a.max(axis=0) == a.min(axis=0)] = 0.0
         med = [np.median(sd[:, c][sd[:, c] > 0]) if (sd[:, c] > 0).any() else np.nan
                for c in range(a.shape[2])]
         x = np.arange(a.shape[2]) + i * width - .4 + width / 2
